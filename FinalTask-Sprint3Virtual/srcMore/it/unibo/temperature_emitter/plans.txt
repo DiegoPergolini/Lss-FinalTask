@@ -1,0 +1,2 @@
+plan(1,init, sentence(-  temp( X) ,raise( temperatureState , temperatureState( X) )'),'','' ))
+plan(2,init, sentence(true,delay( 7000) ,'','' ))

@@ -1,0 +1,136 @@
+/*
+ * ==============================================================
+ * it\unibo\mbot2018.qa\src\robotWenvPR.qa  (proactive/reactive)
+ * ==============================================================
+ */ 
+System robotWenvPR
+Dispatch robotCmd    : cmd(X)    //X=w|a|s|d|h
+Dispatch userControl : cmd(X)    //from console
+Dispatch autoMsg     : autoMsg(X)
+
+  
+Event usercmd     : usercmd(X)    //from robot GUI;  X=robotgui(CMD) CMD=s(low)
+Event inputcmd    : usercmd(X)    //from input GUI;  X=executeInput( do(G,M) )
+Event alarm       : alarm(X)      //from red button  
+Event obstacle    : obstacle(X)   //from red button and from SensorObserver
+Event sonarDetect : obstacle(X)			//from clientTcpForVirtualRobot
+Event sonar  	  : sonar(SONAR, TARGET, DISTANCE)	//From (virtual) sonar
+    
+Context ctxRobotWenvPR     ip [ host="localhost"   port=8098 ] -httpserver
+//EventHandler evobstacle for sonarDetect , alarm{  
+//	forwardEvent robotmind -m userAlarm  
+//};
+
+QActor console context ctxRobotWenvPR{
+ 	State init normal [  ]
+	transition stopAfter 600000
+	whenEvent usercmd -> handleUserCmd
+	finally repeatPlan   
+	
+	State handleUserCmd resumeLastPlan[//MAPPING AFTER EXPERIMENTATION
+		onEvent usercmd : usercmd( robotgui(h(X)) ) -> {
+ 			 	forward robotmind -m userControl : cmd("h")
+			 	//forward robotmind -m obstacle : obstacle("stop")
+		};
+		onEvent usercmd : usercmd( robotgui(w(X)) ) ->
+				forward robotmind -m userControl : cmd("w");
+		onEvent usercmd : usercmd( robotgui(a(X)) ) ->
+				forward robotmind -m userControl : cmd("a");
+		onEvent usercmd : usercmd( robotgui(d(X)) ) ->
+				forward robotmind -m userControl : cmd("d");
+		onEvent usercmd : usercmd( robotgui(s(X)) ) ->
+				forward robotmind -m userControl : cmd("s")
+	]
+}
+
+QActor robotmind context ctxRobotWenvPR   { 
+Rules{
+// 	move(w).	move(d).	move(w). 	move(s).    move(a).	
+//	move(d).	move(w).	move(a).    move(s).	move(h).	
+//	move(w).	move(d).	move(w). 	move(s).    move(a).	
+//	move(d).	move(w).	move(a).    move(s).	move(h).
+ }
+ 	State init normal [  
+ 		delay 1000; //give the time to open localhost:8080
+  		println("robotmind STARTS (user-gui on localhost:8080)") 	 	
+   	]      
+ 	switchTo  someMove
+ 	 
+ 	State someMove[   	//work in autonomous way
+ 		[ !? move(X) ] println( doingMove(X) );
+ 		[ ?? move(X) ] selfMsg autoMsg : autoMsg(X)  
+   	]
+	transition  whenTime 10 -> userControlled   //no more move to do
+		whenMsg autoMsg -> doMove
+    finally repeatPlan
+     
+    State doMove resumeLastPlan[ //work in autonomous way unless ...
+   		printCurrentMessage;
+    	onMsg autoMsg : autoMsg(X) -> forward robotplayer -m robotCmd : cmd(X)
+    ]
+	transition  whenTime 1000 -> someMove   
+	//transition [ !? moveTime(T) ] whenTime T -> someMove  //SORRY, to do
+     	whenMsg obstacle -> handleObstacle,
+    	whenEvent sonar  -> handleSonarEvent	    
+    
+    State  userControlled[	println(userControlled)
+    ] 
+ 	transition  stopAfter 600000  
+   		whenEvent sonarDetect -> handleObstacle,
+     	whenMsg obstacle      -> handleObstacle, 
+    	whenMsg userControl   -> handleUserCmd
+    finally repeatPlan
+    
+    State handleUserCmd resumeLastPlan[
+    	onMsg userControl : cmd(X) -> forward robotplayer -m robotCmd : cmd(X)
+    ]
+       
+  	State handleObstacle   [ 
+  		printCurrentMessage;
+  		println("robotmind: Now I'm handling the presence of an obstacle (could be a wall)")
+  	]
+   	transition whenTime 10 -> userControlled
+   		whenEvent sonar  -> handleSonarEvent
+   
+   	State handleSonarEvent  [ 
+   		printCurrentEvent;
+   		println("robotmind: Now the robot has been detected by the sonar in the WEnv")
+   	]
+
+ }    
+ 
+ 
+ QActor robotplayer context ctxRobotWenvPR{
+  	State init normal [  
+  		println("robotplayer STARTS") ;		   
+  		javaRun it.unibo.robotVirtual.basicRobotExecutor.setUp("localhost")
+    ]      
+   	switchTo doWork
+   	State doWork[   
+   	]
+   	transition stopAfter 600000
+//   		whenMsg robotCmd -> execMove
+   		whenMsg robotCmd : cmd(MOVE) do 
+   			javaRun it.unibo.robotVirtual.basicRobotExecutor.doMove( MOVE )
+   	finally repeatPlan
+
+//    State execMove resumeLastPlan[
+//    	onMsg robotCmd : cmd(MOVE) ->
+//    		javaRun it.unibo.robotVirtual.basicRobotExecutor.doMove( MOVE )
+//    ]
+ 	
+ }
+ 
+ /*
+ * Actor that activates the virtual enevironment W-Env
+ */
+/*  
+QActor startscene context ctxRobot {
+Plan init normal[ 
+ println("startscene starts...");
+ nodeOp 
+ "C:/Didattica2018Work/iss2018Lab/it.unibo.mbot2018/Soffritti/server/src/main.js 8999" -o
+] 	
+}
+* //localhost:8090
+*/  

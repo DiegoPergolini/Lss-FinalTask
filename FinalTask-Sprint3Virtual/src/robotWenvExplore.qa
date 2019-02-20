@@ -1,0 +1,948 @@
+/*
+ * ==============================================================
+ * it\unibo\mbot2018.qa\src\robotWenvPR.qa  (proactive/reactive)
+ * ==============================================================
+ */ 
+ 
+ /*
+  * A first prototype for the robot explorer
+  * Please 
+  * 1)  ADD the dependency
+  * // https://mvnrepository.com/artifact/com.googlecode.aima-java/aima-core
+  * compile group: 'com.googlecode.aima-java', name: 'aima-core', version: '3.0.0'
+  * 
+  * 2) activate it.unibo.mbot2018\nodeCode\robotFrontend\frontendServerRobot.js
+  * 3) PRESS EXPLORE (See FrontEnd2018 3.65. An external component) 
+  * or uncomment (TO BE REMOVED)
+  *   
+  *  
+  */
+  
+System robotWenvExplore
+
+/**WORLD OBSERVER */
+Dispatch temperatureChangeValue : temperatureState ( V )
+Dispatch robotChangeState : robotState(V)
+Dispatch cellValueMsg : cellValue(X,Y,S)
+Event robotState: robotState( V )
+Event mapUpdate: mapUpdate(X,Y,S)
+Event consoleUpdate: worldState(temperature(T),robotState(S))
+Event invalidCondition : invalidCondition( V )
+Event validCondition : validCondition( V )
+
+/**FROM COMMAND CONVERTER */
+Dispatch startAppl : startAppl(X)
+Dispatch haltAppl  : haltAppl(X)
+Dispatch backToInit :backToInit
+Dispatch waitSecondRobot:  waitSecondRobot
+Dispatch checkCond:_checkCond
+Dispatch stopWork: stopWork (V)
+Dispatch continueExploration :continueExploration
+Dispatch backToHomeSinceBomb : backToHomeSinceBomb
+Dispatch backToHome : backToHome(X)
+Dispatch resumeExploration : resumeExploration(X)
+ 
+/*LED CONTROL */
+Dispatch ledBlink : ledBlink
+Dispatch ledOff : ledOff
+
+Dispatch doExplore    : doExplore
+
+/*MIND*/
+Dispatch robotCmd      : robotCmd(M,T)  		 //M=w|a|s|d|h  T:(int) duration
+Dispatch moveAhead     : moveAhead 
+Dispatch endAction     : endAction 
+Dispatch moveAction    : moveAction(D,REPLAN)	 //D=a|d|up|down|s, REPLAN=true|false
+Dispatch doNextActions : doNextActions
+
+/*ONE CELL FORWARD*/
+Dispatch collisionDispatch : obstacle(TARGET)
+Dispatch replayMsg           : replayMsg( V )
+Dispatch waitMoveWAnswer     : waitMoveWAnswer
+Dispatch moveMsgCmd          : moveMsgCmd(TF)  
+Dispatch moveMsgCmdDone      : moveMsgCmdDone(X) //X=   
+Dispatch moveMsgCmdObstacle  : moveMsgCmdObstacle(X) //X=
+Dispatch obstacleFar         : obstacleFar
+Dispatch obstacleNear        : obstacleNear
+
+Dispatch userControl : cmd(X)    //from console
+
+Event robotPos: robotPos(X,Y,S)
+
+Event temperatureState : temperatureState(X) 
+
+/*  
+ * EXPLORATION
+ */
+
+Event obstaclePhoto: obstaclePhoto(X,Y)
+
+Event isBomb: isBomb
+Event isNotBomb: isNotABomb
+/*
+ * Onecellforward
+ */
+
+Event sonarDetect : obstacle(X)		//From wenv-robotsonar-by clientTcpForVirtualRobot
+Event sonar  	  : sonar(SONAR, TARGET, DISTANCE)	//From wenv sonar
+Event usercmd     : usercmd(X)    //from robot GUI;  X=robotgui(CMD) CMD=s(low)
+
+
+Dispatch allMap: allMap(X)
+Dispatch discoveryAtHome : discoveryAtHome
+Dispatch mapCompleted: mapCompleted
+Dispatch bombPosition: bombPosition(X,Y)
+Dispatch photoMsg: photoMsg(PHOTO)
+Dispatch bombRetrieved:bombRetrieved(X,Y)
+Dispatch bombRetrievedMsg:bombRetrievedMsg(X,Y)
+Dispatch startRetrievingMsg:startRetrievingMsg
+Dispatch tempChange:tempChange
+
+Event bombRetrievedEvent:bombRetrievedEvent(X,Y)
+Event photoM:photoM(PHOTO)
+
+pubSubServer  "tcp://localhost:1883"    
+ 
+ 
+Context ctxRobotExplore     ip [ host="localhost"  port=8028 ]
+
+EventHandler collisionevh for sonarDetect -print  {   
+ 	forwardEvent onecellforward -m collisionDispatch
+};
+
+
+EventHandler evhtemperaturestate for temperatureState {//map a temperatureChangeValue event into msg
+ forwardEvent worldobserver -m temperatureChangeValue
+};
+
+EventHandler evhrobotstate for robotState {
+	 forwardEvent worldobserver -m robotChangeState
+};
+
+
+EventHandler evhinvcondition for invalidCondition{ //store the event in the worldtheory of robotmind
+	
+	demo changeEnvCond(ko) for mind
+};
+
+EventHandler evhvalcondition for validCondition{ //store the event in the worldtheory of robotmind
+	demo changeEnvCond(ok) for mind
+};
+
+Context ctxRobotRetriever    ip [ host="localhost"   port=8100 ]
+
+/**
+ * TEMPERATURE EMITTER, ACTUALLY NOT USED
+ */
+QActor temperature_emitter context ctxRobotExplore {
+	Rules{		
+	}
+	State init normal[
+		[?? temp(X)] emit temperatureState : temperatureState(X);
+		delay 7000
+	] finally repeatPlan
+}
+
+/**
+ * LED CONTROLLER, ACTUALLY USE A VIRTUAL MOCK LED
+ */
+QActor ledcontrol context ctxRobotExplore{
+	Plan init normal[
+	]transition stopAfter 600000
+	whenMsg ledBlink -> doBlink,
+	whenMsg ledOff  -> ledOff 
+	finally repeatPlan
+	//Requirement R-blinkLed
+	Plan doBlink[
+		onMsg ledBlink : ledBlink -> println(ledBlinkMsg);
+		javaRun it.unibo.ledmock.ledUtil.switchLed()
+	]transition whenTime 500 -> doBlink
+		whenMsg ledOff  -> ledOff,
+		whenMsg ledBlink -> doBlink
+		
+	Plan ledOff[
+		javaRun it.unibo.ledmock.ledUtil.turnOffLed();
+		println('LED  OFF') 	
+	]switchTo init
+}
+
+/**
+ * MAP_KEEPER
+ * This Actor reconstruct the map after receiving it via mqtt msg
+ */
+QActor map_keeper context ctxRobotRetriever -pubsub {
+	Rules{
+		allCell(D):- findall(cellState(X,Y,S),cellState(X,Y,S),D).
+	}
+	Plan init initial[
+		demo consult("./src/theory.pl")
+	]switchTo handleMsg
+	
+	Plan handleMsg[
+		javaRun it.unibo.planning.planUtil.showMap()	
+	]transition stopAfter 6000000
+	whenMsg allMap ->handleMap,
+	whenMsg bombPosition -> handleBombPosition,
+	whenMsg bombRetrieved -> bombRetrieved,
+	whenMsg startRetrievingMsg-> sendCommandStart
+	
+	Plan sendCommandStart[
+		forward robot_retriever -m startRetrievingMsg: startRetrievingMsg
+	]switchTo handleMsg
+	
+	Plan bombRetrieved[
+		onMsg bombRetrieved : bombRetrieved(X,Y) ->	javaRun it.unibo.planning.photoUtils.sendMsg(X,Y)
+	]transition whenTime 100 -> handleMsg
+	
+	Plan handleBombPosition[
+		println("Bomb position");
+		onMsg bombPosition : bombPosition(X,Y) -> addRule bombPosition(X,Y);
+		[!? bombPosition(X,Y)] println(bombPosition(X,Y));
+		[?? bombPosition(X,Y)] forward robot_retriever -m bombPosition : bombPosition(X,Y)
+	]transition whenTime 100 -> handleMsg
+
+	Plan handleMap[
+		onMsg allMap:allMap(D) -> demo dosomething(D)
+	]switchTo buildMap
+	
+	Plan buildMap[
+		println("building map..");
+		[?? cellState(X,Y,1)] javaRun it.unibo.planning.mapUtil.setFreeCell(X,Y) else{
+			[?? cellState(X,Y,x)] javaRun it.unibo.planning.mapUtil.setObstacle(X,Y) else
+			selfMsg mapCompleted : mapCompleted
+		}
+	]transition whenTime 20 -> buildMap
+		whenMsg mapCompleted -> handleMsg
+}
+/**
+ * PLAYER RETRIEVER, IT IS THE ACTUATOR FOR THE RETRIEVER ROBOT
+ */
+QActor player_retriever context ctxRobotRetriever { 
+	Plan init normal[ 	
+ 	  javaRun it.unibo.robotVirtual.basicRobotExecutor.setUp("localhost");
+ 	  delay 1000;
+  	  println("player retriever STARTS")
+ 	]  
+	switchTo  cmdIntepreter
+	  
+	Plan cmdIntepreter[	] 
+	transition stopAfter 600000
+ 		 whenMsg robotCmd -> execMove  
+	finally repeatPlan
+	
+ 	Plan execMove resumeLastPlan [  
+		onMsg robotCmd : robotCmd(M,T) -> 
+			javaRun it.unibo.robotVirtual.basicRobotExecutor.doMove( M,T )
+	]
+}
+/**
+ * MIND_ROBOT_RETRIEVER
+ * It is the mind of the retriever robot.
+ */ 
+QActor robot_retriever context ctxRobotRetriever {
+	Rules{
+	timew(255).  
+	timeTurn(300).
+
+//----------------------------------
+	eval( eq, X, X ).		//since we have syntax limitations
+	doTheMove(M) :-  moveDone(_),!,fail. 
+	doTheMove(M) :-  //moveDone does not exist: we can goon
+		move(M1), !, //M1 is the first move to do
+		eval(eq,M,M1), !,  
+ 		doTheFirstMove(M). 
+	    
+	doTheFirstMove(w) :- timew(T), 
+	         replaceRule( moveDone(_), moveDone(T) ), retract( move(w) ),!.   			
+	doTheFirstMove(a) :- timeTurn(T),  
+	         replaceRule( moveDone(_),moveDone(T) ), retract( move(a) ),!.
+	doTheFirstMove(d) :- timeTurn(T),  
+	        replaceRule( moveDone(_),moveDone(T) ), retract( move(d) ),!.	 			
+	}  
+	Plan init initial [
+		println("Robot Retriever Ready");
+		javaRun it.unibo.planning.planUtil.initAI()
+	]transition stopAfter 6000000
+	 whenMsg bombPosition -> startRetrieving
+	 
+	//Requirement R-reachBag
+	Plan startRetrieving[
+		onMsg bombPosition : bombPosition(X,Y) -> addRule bombPosition(X,Y);
+		[!? bombPosition(X,Y)] javaRun it.unibo.planning.planUtil.setGoal(X,Y);
+		javaRun it.unibo.planning.planUtil.doPlanConservative()
+	]transition stopAfter 6000000 
+	whenMsg startRetrievingMsg -> doActions
+	
+	Plan doActions[ //javaOp "debugStep()";
+		[ !? curPos(X,Y,D)] println(currPos(X,Y,D));
+		[ !? move(M) ] println( doActions_doingTheMove(M) );   
+		[ not !? move(M) ] selfMsg endAction : endAction ;
+		[ !? moveDone(M) ] println (moveDone(M));
+   		removeRule moveDone(_);     
+   		ReplaceRule moveDuration(_) with  moveDuration(moveWDuration(0));
+     	[ !? doTheMove(a) ]  {  
+ 			selfMsg moveAction : moveAction(a, false)  
+   		 } ;  
+     	[ !? doTheMove(d) ] {  
+			selfMsg moveAction : moveAction(d, false)  
+   		} ;	
+     	[ !? doTheMove(w) ]{   //attempt to move
+     		selfMsg moveAction : moveAction(w, false) 
+ 		}
+	]
+   	transition stopAfter 60000  
+     	whenMsg moveAction         -> nextMove,
+ 	    whenMsg endAction          -> backToHome
+	
+	//Requirement R-bagAtHome
+ 	Plan backToHome  [
+ 		println("Back to home state");
+ 		[ !? curPos(0,0,D)  ]{
+ 			 println(  "AT HOME "	 );	
+ 			 javaRun it.unibo.planning.planUtil.showMap() ;
+ 			 [?? bombPosition(X,Y) ] forward map_keeper -m bombRetrieved:bombRetrieved(X,Y);
+			 selfMsg backToInit:backToInit
+ 		 }
+ 		else{
+ 			//Requirement R-bagAtHome
+ 	  		javaRun it.unibo.planning.planUtil.setGoal("0","0");
+	  		[ !? curPos(X,Y,D)  ]  println( backToHome(X,Y,D) );
+	  		javaRun it.unibo.planning.planUtil.doPlanConservative()
+  		}
+ 	]
+ 	transition whenTime 100 -> doActions
+ 		whenMsg backToInit -> init
+ 		
+ 	Plan nextMove[ 	
+ 	  onMsg moveAction : moveAction( w, _ ) -> { 
+		[ ?? moveDone(T) ] javaRun it.unibo.utils.movePlanUtil.moveToRetriever("w",T)  //move and update map
+ 	  };
+ 	  onMsg moveAction : moveAction( a, _ ) -> { //moveLeft
+		[ !? timeTurn(T) ] javaRun it.unibo.utils.movePlanUtil.moveToRetriever("a",T)  //move and update map
+ 	  };
+ 	  onMsg moveAction : moveAction( d, _ ) -> { //moveRight	 
+		[ !? timeTurn(T) ] javaRun it.unibo.utils.movePlanUtil.moveToRetriever("d",T)	//move and update map	
+	  }
+	  ;[ !? curPos(X,Y,D)  ]  println( curPos(X,Y,D) )
+	]
+	switchTo doActions
+	
+}
+/**
+ * WORLDOBSERVER, ACTOR THAT CHECK THE ENVIRONMENT CONDITION AND THE ROBOT STATE
+*/
+QActor worldobserver context ctxRobotExplore -pubsub {
+	Rules{
+		temperatureState(0).
+		robotState( stopped ). 
+		ledState( off ).
+		
+		worldState(T,S):-
+		temperatureState(T),
+		robotState(S).
+		
+ 		invalidCond(T) :- temperatureState(T), eval( gt, T, 25 ).
+ 		
+ 		
+ 		limitTemperatureValue (25).
+
+		
+ 		changeTemperatureState( T ) :-
+		replaceRule( temperatureState( _ ),temperatureState( T ) ),
+		invalidCond(T),
+		output(invalidCond(T)).
+		
+		changeRobotState( exploring ) :-
+		replaceRule( robotState( _ ),robotState( exploring ) ),
+		replaceRule( ledState( _ ),ledState( blinking ) ),
+		robotState( T ),ledState( S ),
+		output(S).
+		
+		changeRobotState( stopped ) :-
+		replaceRule( robotState( _ ),robotState( stopped ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( waitingSecondRobot ) :-
+		replaceRule( robotState( _ ),robotState( waitingSecondRobot ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( readyToStart ) :-
+		replaceRule( robotState( _ ),robotState( readyToStart ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( waitingObstacleClassification ) :-
+		replaceRule( robotState( _ ),robotState( waitingObstacleClassification ) ),
+		replaceRule( ledState( _ ),ledState( blinking ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( comingBackToHomeSinceBomb ) :-
+		replaceRule( robotState( _ ),robotState( comingBackToHomeSinceBomb ) ),
+		replaceRule( ledState( _ ),ledState( blinking ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( comingBackToHomeSinceHalt ) :-
+		replaceRule( robotState( _ ),robotState( comingBackToHomeSinceHalt ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+		
+		changeRobotState( atHomeWithInvalidCondition ) :-
+		replaceRule( robotState( _ ),robotState( atHomeWithInvalidCondition ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+
+		changeRobotState( comingBackToHomeSinceInvalidCondition ) :-
+		replaceRule( robotState( _ ),robotState( comingBackToHomeSinceInvalidCondition ) ),
+		replaceRule( ledState( _ ),ledState( off ) ),
+		robotState(T),ledState(S),
+		output(S).
+				
+		isCellToUpdate(X,Y,S) :- 
+			cellState(X,Y,Z),
+			output(Y),
+			replaceRule(cellState(X,Y,Z),cellState(X,Y,S)).
+		allCell(D):- findall(cellState(X,Y,S),cellState(X,Y,S),D).
+	}
+	Plan init initial[
+		]switchTo second
+		
+	Plan second  resumeLastPlan[
+	] transition stopAfter 6000000
+	whenMsg bombRetrievedMsg -> handleBombRetrieved,
+	whenMsg temperatureChangeValue -> handleChange,
+	whenMsg robotChangeState -> handleRobotStateChange,
+	whenMsg cellValueMsg -> handleCellValueChange,
+	whenMsg bombPosition -> handleBombPosition,
+	whenMsg discoveryAtHome -> sendMapToRetriever	
+	finally repeatPlan
+	
+	//Requirement R-reachBag
+	Plan handleBombPosition[
+		onMsg bombPosition: bombPosition(X,Y) -> ReplaceRule cellState(X,Y,_) with cellState(X,Y,1);
+		onMsg bombPosition: bombPosition(X,Y) -> addRule bombPosition(X,Y)
+	]switchTo second
+	
+	//Requirement R-bagAtHome
+	Plan handleBombRetrieved[
+		println("Bomb retrieved msg");
+		onMsg bombRetrievedMsg : bombRetrievedMsg(X,Y) -> publishEvent "unibo/qasys" -e  mapUpdate: mapUpdate(X,Y,1)
+	]switchTo second
+	
+	//Requirement R-sendPhoto
+	Plan handlePhoto[
+		println("Handling photo");
+		onMsg photoMsg : photoMsg(P)  -> publishEvent "unibo/qasys" -e photoM : photoM(P)
+	]switchTo second
+	
+	//Requirement R-waitForHome
+	Plan sendMapToRetriever [
+		demo allCell(D);
+		[?? goalResult(allCell(D))]  forward map_keeper -m allMap:allMap(D);
+		[?? bombPosition(X,Y) ] forward map_keeper -m bombPosition:bombPosition(X,Y)
+	]switchTo second
+	
+	//Requirement R-consoleUpdate
+	Plan handleCellValueChange[
+			onMsg cellValueMsg : cellValue(X,Y,S) -> ReplaceRule cellState(X,Y,_) with cellState(X,Y,S);
+			onMsg cellValueMsg : cellValue(X,Y,S) -> publishEvent "unibo/qasys" -e  mapUpdate: mapUpdate(X,Y,S);
+			onMsg cellValueMsg : cellValue(X,Y,1) -> publishEvent "unibo/qasys" -e  robotPos: robotPos(X,Y,r)
+	]switchTo second
+	
+	//Requirement R-consoleUpdate
+	Plan handleRobotStateChange [
+		onMsg robotChangeState : robotState(V) -> demo changeRobotState(V);
+		[!? ledState( blinking )]{
+			forward  ledcontrol -m ledBlink:ledBlink
+		};
+		[!? ledState( off )] {
+				forward  ledcontrol -m ledOff:ledOff
+			}
+	]transition whenTime 200 -> consoleUpdate
+	
+	//Requirement R-tempOk
+	Plan handleChange [
+		onMsg temperatureChangeValue : temperatureState( T ) -> demo changeTemperatureState(T);		
+		[!? invalidCond(T)]{
+			ReplaceRule robotState(_) with robotState( atHomeWithInvalidCondition );
+			emit invalidCondition :  invalidCondition ( temperature(t) )
+		} else{
+			ReplaceRule robotState(_) with robotState( readyToStart );
+			emit validCondition :  validCondition ( temperature(T) )
+		}
+	] transition whenTime 200 -> consoleUpdate
+	
+	//Requirement R-consoleUpdate
+	Plan consoleUpdate[
+     	[!? worldState(T,S)] publishEvent "unibo/qasys" -e  consoleUpdate: worldState(temperature(T),robotState(S))
+	]switchTo second
+	
+	Plan checkCond[
+		[!? invalidCond(T)]  emit invalidCondition :  invalidCondition ( temperature(T) ) else
+			emit validCondition :  validCondition ( temperature(T) )
+	]switchTo init
+
+}
+
+/**
+ * CMDROBOT CONVERTER, IT TRANSLATE COMMAND EVENT FROM THE FRONT-END TO MSG
+ */
+QActor cmdrobotconverter context ctxRobotExplore -pubsub{  
+ 	State init normal [  ]
+	transition stopAfter 600000
+	whenEvent usercmd -> handleUserCmd
+	finally repeatPlan      
+	
+	State handleUserCmd resumeLastPlan[
+		printCurrentEvent;
+		//TEST ONLY
+   	    onEvent usercmd : usercmd(robotgui(w(SPEED))) -> forward player  -m robotCmd : robotCmd(w) ;
+    	onEvent usercmd : usercmd(robotgui(s(SPEED))) -> forward player  -m robotCmd : robotCmd(s) ;
+    	onEvent usercmd : usercmd(robotgui(a(SPEED))) -> forward player  -m robotCmd : robotCmd(a) ;
+    	onEvent usercmd : usercmd(robotgui(d(SPEED))) -> forward player  -m robotCmd : robotCmd(d) ;
+    	onEvent usercmd : usercmd(robotgui(h(SPEED))) -> forward player  -m robotCmd : robotCmd(h) ; 
+    	//APPLICATION COMANDS		
+		onEvent usercmd : usercmd(  explore ) -> forward mind -m startAppl : startAppl(ok);
+		onEvent usercmd : usercmd(  halt )    -> forward mind -m haltAppl  : haltAppl(ok);
+		onEvent usercmd : usercmd( isbomb )   -> forward mind -m backToHomeSinceBomb  : backToHomeSinceBomb;
+		onEvent usercmd : usercmd( isnotbomb ) -> forward mind -m continueExploration  : continueExploration;
+		onEvent usercmd : usercmd( tempOk(T) )   -> forward worldobserver -m temperatureChangeValue  : temperatureState(T);
+		onEvent usercmd : usercmd( tempNotOk )   -> forward worldobserver -m temperatureChangeValue  : temperatureState(28);
+		onEvent usercmd : usercmd( resume ) -> forward mind -m resumeExploration : resumeExploration(ok);
+		onEvent usercmd : usercmd( backtohome )    -> forward mind -m backToHome  : backToHome(ok);
+		onEvent usercmd : usercmd( startretriever )    -> forward map_keeper -m startRetrievingMsg  : startRetrievingMsg
+	]
+}
+
+/**
+ * PLAYER, IT IS THE ACTUATOR FOR ROBOT DISCOVERY
+ */
+QActor player context ctxRobotExplore{ 
+	Plan init normal[ 	
+ 	  javaRun it.unibo.robotVirtual.basicRobotExecutor.setUp("localhost");
+ 	  delay 1000;
+  	  println("player STARTS")
+ 	]  
+	switchTo  cmdIntepreter
+	  
+	Plan cmdIntepreter[	] 
+	transition stopAfter 600000
+ 		 whenMsg robotCmd -> execMove  
+	finally repeatPlan
+	
+ 	Plan execMove resumeLastPlan [  
+		onMsg robotCmd : robotCmd(M,T) -> 
+			javaRun it.unibo.robotVirtual.basicRobotExecutor.doMove( M,T )
+	]
+}
+/*
+ * ----------------------------------------------------------
+ * onecellforward : moves the robot ahead of one cell
+ * ----------------------------------------------------------
+ */
+QActor onecellforward context ctxRobotExplore { 
+Rules{
+	timeTurn(300).
+	moveTimeInfo(timew(TF),moveWDuration(TD)) :- timew(TF),moveWDuration(TD).
+}	
+	
+	Plan init normal[ 	
+	]
+	transition stopAfter 6000000
+		whenMsg haltAppl   -> handleStop ,   //first to be checked
+		whenMsg moveMsgCmd -> startWork
+
+    Plan startWork[
+ 		onMsg  moveMsgCmd : moveMsgCmd( TF ) -> 
+		          ReplaceRule timew(_) with timew(TF); 
+		println("Trying to go ahead");          
+		//SAVE THE CURRENT MESSAGE. the currentMessage is lost when the state changes
+ 	 	javaOp "storeCurrentMessageForReply()" ;  //used by replyToCaller
+ 		//[!? timew( T )] println(doMoveForward_timeForForward(T));
+	 	javaRun it.unibo.utils.movePlanUtil.startTimer();
+	 	[ !? timew( T ) ] forward player -m robotCmd : robotCmd(w,T)
+    ]  
+	//transition  [ !? timew( T ) ] whenTime T -> endMoveForward	    
+	transition  whenTime 255 -> endMoveForward	 //asynch
+	     whenMsg haltAppl          -> handleStop ,   //first to be checked
+   	     whenMsg collisionDispatch -> probableFixedObstacle     //NO MOBILE OBSTACLES ... 
+
+	Plan probableFixedObstacle[ 
+ 		forward player -m robotCmd : robotCmd(h,0);
+ 		javaRun it.unibo.utils.movePlanUtil.getDuration();  
+		[!? moveWDuration(T)] println(onecellforward_probableFixedObstacle(T));
+		selfMsg obstacleNear : obstacleNear 
+	] 
+	switchTo consumePendingCollisions
+
+    Plan consumePendingCollisions  [
+    	println("onecellforward_consumePendingCollisions: (a physical sonar should ...) ")
+    ] 
+ 	transition whenTime 3000      -> handleError
+ 		whenMsg haltAppl          -> handleStop ,   //first to be checked
+    	whenMsg collisionDispatch -> consumePendingCollisions,  
+ 		whenMsg obstacleNear      -> sendAnswerAfterCollision 
+
+	Plan sendAnswerAfterCollision[ //obstacle far has duration negative
+		println("onecellforward  sendAnswerAfterCollision");	
+ 		javaOp "ignoreCurrentCaller()"; //set currentMessage = null;
+ 		[ ?? moveWDuration(T) ]  //reply to the saved caller
+ 			replyToCaller -m moveMsgCmdObstacle : moveMsgCmdObstacle(moveWDuration(T))		
+	]
+	switchTo init 
+	
+	Plan endMoveForward[ 
+ 		forward player -m robotCmd : robotCmd(h,0);
+		javaRun it.unibo.utils.movePlanUtil.getDuration();
+ 		[ !? moveTimeInfo(TF,TD)] replyToCaller -m moveMsgCmdDone : moveMsgCmdDone( TD )
+	]
+	switchTo init 
+
+	Plan handleStop[ println("onecellforward: robot STOPPED: no reply to the caller") ]switchTo init
+	Plan handleError[ println("onecellforward ERROR") ]
+}//
+
+/**
+ * MIND_ROBOT_DISCOVERY
+ * It is the mind of the discovery robot.
+ */ 
+QActor mind context ctxRobotExplore -pubsub{  
+	Rules{
+		timew(255).  
+		timeTurn(300).
+		numOfExplorations(7). 	
+		curGoal(0,0).   
+	 	envCond(ok).
+		continueForward(T) :-  timew(T),  inc(repeatForward,1,R), getVal( nstep,N ),
+						output(continueForward( R,N,T )), eval( lt, R, N ).						 	 
+	 	continueExplore(V)  :- numOfExplorations(MAX), inc(curNumExplore,1,V), 
+	 			output(continueExplore( V,MAX )),eval( le, V, MAX ),
+	 			replaceRule( curGoal(_,_), curGoal(V,V) ).	
+	 	continueExplore(V) :- removeeRule( curGoal(_,_) ).			
+	 	 
+	//----------------------------------
+		eval( eq, X, X ).		//since we have syntax limitations
+		doTheMove(M) :-  moveDone(_),!,fail. 
+		doTheMove(M) :-  //moveDone does not exist: we can goon
+			move(M1), !, //M1 is the first move to do
+			eval(eq,M,M1), !,  
+	 		doTheFirstMove(M). 
+		    
+		doTheFirstMove(w) :- timew(T), 
+		         replaceRule( moveDone(_), moveDone(T) ), retract( move(w) ),!.   			
+		doTheFirstMove(a) :- timeTurn(T),  
+		         replaceRule( moveDone(_),moveDone(T) ), retract( move(a) ),!.
+		doTheFirstMove(d) :- timeTurn(T),  
+		        replaceRule( moveDone(_),moveDone(T) ), retract( move(d) ),!.	 
+		        
+		        
+		changeEnvCond( T ) :-
+		replaceRule( envCond( _ ),envCond( T ) ),
+		output(envCond(T)).
+	
+		obstacleCell( X , Y , downDir , X , Y1) :-
+			eval( plus , Y , 1, Y1 ).
+		obstacleCell( X , Y , upDir , X , Y1) :-
+			eval( minus , Y , 1, Y1 ).
+		obstacleCell( X , Y , leftDir , X1 , Y) :-
+			eval( minus , X , 1, X1 ).
+		obstacleCell( X , Y , rightDir , X1 , Y) :-
+			eval( plus , X , 1, X1 ).
+		goalIsObstacle(X,Y):-curGoal(X,Y). 						
+	}
+	
+	State initMind normal [
+		javaRun it.unibo.planning.planUtil.initAI();
+		println("mind WAITS")
+	]switchTo waitAndCheckCond
+	
+	//Requirement R-startExplore
+  	State waitAndCheckCond  [
+  	[!? envCond(ko)]{
+  			ReplaceRule robotState(_) with robotState( atHomeWithInvalidCondition );
+  			emit robotState : robotState( atHomeWithInvalidCondition )
+  		}else{
+  			ReplaceRule robotState(_) with robotState( readyToStart );
+  			emit robotState : robotState( readyToStart )
+  		}
+    ]transition stopAfter 600000
+    	whenMsg startAppl -> startAppl
+    	
+
+    //Requirement R-explore	
+	State startAppl [
+		[!? envCond(ko)] selfMsg stopWork : stopWork(ko) else{
+			println("MIND START EXPLORATION ") ;
+			ReplaceRule robotState(_) with robotState( exploring );
+			emit robotState : robotState(exploring);
+	  		delay 500;
+	 		demo assign( curNumExplore, 0 ); 
+	  		javaRun it.unibo.planning.planUtil.cleanQa();
+			demo assign( nstep,   0) ;	
+	 		selfMsg doExplore : doExplore
+		}
+
+	]
+   	transition stopAfter 600000
+   		whenMsg stopWork 	   -> waitAndCheckCond,
+     	whenMsg doExplore      -> exploreStep,
+     	whenEvent sonar    	   -> handleSonar,
+     	whenEvent sonarDetect  -> handleSonar   
+	finally repeatPlan
+	
+    //Requirement R-explore	 	        
+ 	Plan exploreStep[
+ 		[!? envCond(V)] println(V);
+ 		[!? envCond(ko)] {
+ 				[ !? curPos(0,0,D)  ] selfMsg backToInit : backToInit else selfMsg stopWork : stopWork(ko)
+ 			};
+ 		[ !? curPos(X,Y,D)  ]  println( exploreStep(X,Y,D) );
+   		[ !? continueExplore(N)] {
+			javaRun it.unibo.planning.planUtil.extendSpaceToexplore( );
+ 			[!? getVal(curNumExplore,E)] javaRun it.unibo.planning.planUtil.setGoal(E,E); 
+			javaRun it.unibo.planning.planUtil.doPlanEnterprising() //;javaOp "debugStep()"
+		} else selfMsg endAction : endAction  
+ 	]    
+ 	transition whenTime 1000 -> doActions
+ 		whenMsg endAction -> exploreUncovered ,//: endAction do println("bye")
+ 		whenMsg stopWork -> backToHome,
+ 		whenMsg backToInit -> waitAndCheckCond
+    
+    //Requirement R-explore	      
+    Plan exploreUncovered[
+    	[ !? curPos(X,Y,D)  ]  println( exploreUncovered(X,Y,D) );
+    	javaRun it.unibo.planning.planUtil.showMap() ;
+    	javaRun it.unibo.planning.planUtil.findNextCellUncovered( );
+    	[ !? uncovered(X,Y )] println( uncovered(X,Y ) );
+    	[ !? uncovered(X,Y )] javaRun it.unibo.planning.planUtil.setGoal(X,Y); 
+    	[ ?? uncovered(X,Y )] javaRun it.unibo.planning.planUtil.doPlanEnterprising()  
+    	else selfMsg endAction : endAction  
+    ]
+ 	transition whenTime 100 -> doActions
+ 		whenMsg endAction : endAction do println("bye")
+ 		
+ 		
+    //Requirement R-backHome
+	//Requirement R-backHomeSinceBomb 
+ 	Plan backToHome  [
+ 		println("Back to home state");
+ 		[ !? curPos(0,0,D)  ]{
+	 			 println(  "AT HOME "	 );	
+	 			 javaRun it.unibo.planning.planUtil.showMap() ;
+	 			 [?? bombDetected(X) ]{
+	 			 	selfMsg waitSecondRobot : waitSecondRobot 
+	 			 } else {
+	 			 	[?? halted(V) ]{
+	 			 			selfMsg backToInit:backToInit
+	 			 		}else selfMsg endAction : endAction
+	 		 } 		 
+ 		 }else{
+ 	  		javaRun it.unibo.planning.planUtil.setGoal("0","0");
+	  		[ !? curPos(X,Y,D)  ]  println( backToHome(X,Y,D) );
+	  		[!? halted(V) ]{
+	  			javaRun it.unibo.planning.planUtil.doPlanConservative()
+	  		}else {
+	  			[!? bombDetected(X) ] {
+	  				javaRun it.unibo.planning.planUtil.doPlanConservative()
+	  			} else{
+	  				javaRun it.unibo.planning.planUtil.doPlanEnterprising()		
+	  			}
+	  		}
+  		}
+ 	]transition whenTime 100 -> doActions
+ 		whenMsg endAction -> exploreStep,
+ 		whenMsg waitSecondRobot -> waitingToRemoveBomb,
+ 		whenMsg backToInit -> waitAndCheckCond
+  
+  //Requirement R-waitForHome		
+   State waitingToRemoveBomb [
+   		println("Waiting to remove bomb");
+		ReplaceRule robotState(_) with robotState( waitingSecondRobot );
+   		emit robotState : robotState( waitingSecondRobot );
+   		forward worldobserver -m discoveryAtHome: discoveryAtHome
+   ]transition stopAfter 600000
+    whenEvent bombRetrievedEvent -> updateMapAndBackToInit
+    finally repeatPlan
+    
+    //Requirement R-bagAtHome
+    Plan updateMapAndBackToInit[
+    	println("bomb retrieved event");
+    	[!? bombToRetrieve(X,Y)]  println(bomb(X,Y));
+    	[!? bombToRetrieve(X,Y)]  javaRun it.unibo.planning.mapUtil.setFreeCell(X,Y);
+    	[?? bombToRetrieve(X,Y)]  forward worldobserver -m bombRetrievedMsg :bombRetrievedMsg(X,Y);
+    	javaRun it.unibo.planning.planUtil.showMap()
+   	]switchTo waitAndCheckCond
+   	
+	Plan doActions[ //javaOp "debugStep()";
+		[ !? curPos(X,Y,D)] println(currPos(X,Y,D));
+		[ !? move(M) ] println( doActions_doingTheMove(M) );   
+		[ not !? move(M) ] selfMsg endAction : endAction ;
+		[ !? moveDone(M) ] println (moveDone(M));
+   		removeRule moveDone(_);     
+   		ReplaceRule moveDuration(_) with  moveDuration(moveWDuration(0));
+     	[ !? doTheMove(a) ]  {  
+ 			selfMsg moveAction : moveAction(a, false)  
+   		 } ;  
+     	[ !? doTheMove(d) ] {  
+			selfMsg moveAction : moveAction(d, false)  
+   		} ;	
+     	[ !? doTheMove(w) ]{   //attempt to move
+     		println("Dentro do the Move w");
+      		[ ?? moveDone(T) ] forward onecellforward -m moveMsgCmd : moveMsgCmd(T); 
+      		selfMsg waitMoveWAnswer : waitMoveWAnswer
+ 		}
+	]
+   	transition stopAfter 60000  
+     	whenMsg moveAction         -> nextMove,
+ 	    whenMsg endAction          -> backToHome ,
+  	    whenMsg waitMoveWAnswer    -> waitForwardHomeMoveAnswer
+
+ 	Plan nextMove[ 	
+ 	  onMsg moveAction : moveAction( a, _ ) -> { //moveLeft
+		[ !? timeTurn(T) ] javaRun it.unibo.utils.movePlanUtil.move("a",T)  //move and update map
+ 	  };
+ 	  onMsg moveAction : moveAction( d, _ ) -> { //moveRight	 
+		[ !? timeTurn(T) ] javaRun it.unibo.utils.movePlanUtil.move("d",T)	//move and update map	
+	  }
+	  ;[ !? curPos(X,Y,D)  ]  println( curPos(X,Y,D) )
+	]
+	switchTo doActions  
+   
+   
+    Plan waitForwardHomeMoveAnswer[
+    	println("Waiting answer")
+    ]
+	transition stopAfter 60000    
+  		whenMsg moveMsgCmdDone     -> handleCmdDone,  
+  		whenMsg moveMsgCmdObstacle -> handleFixedObstacleCases
+ 
+ 	Plan handleCmdDone[
+ 		javaRun it.unibo.planning.planUtil.doMove("w");
+ 		javaRun it.unibo.planning.planUtil.showMap();
+ 		[ !? curPos(X,Y,D)  ] forward worldobserver -m cellValueMsg : cellValue(X,Y,1)
+ 	]switchTo checkStop
+ 	
+ 	//Requirement R-TempOk
+ 	Plan checkStop[
+ 		[!? envCond(ko)] {
+ 				[ !? curPos(0,0,D)  ] {
+ 					ReplaceRule robotState(_) with robotState( atHomeWithInvalidCondition ); 	 	
+	 				emit robotState : robotState( atHomeWithInvalidCondition );
+ 					selfMsg backToInit : backToInit
+ 				}else {
+ 					ReplaceRule robotState(_) with robotState( comingBackToHomeSinceInvalidCondition ); 	 	
+	 				emit robotState : robotState( comingBackToHomeSinceInvalidCondition );
+ 					selfMsg stopWork : stopWork(ko)
+ 				}
+ 			}
+ 	]transition whenTime 20 -> doActions
+ 		whenMsg stopWork -> backToHome,
+ 		whenMsg backToInit -> waitAndCheckCond,
+ 		whenMsg haltAppl   -> handleStop
+ 
+ 	 //Requirement R-stopExplore
+ 	 Plan handleStop[
+  		ReplaceRule robotState(_) with robotState( stopped ); 	 	
+	 	emit robotState : robotState( stopped );
+ 		println("Stopping the exploration, continue or back to home?");
+		javaRun it.unibo.utils.movePlanUtil.moveNoMap("h","100")  
+	 ]transition whenTime 6000000 -> doActions
+	 whenMsg resumeExploration ->resumeExploration,
+	 whenMsg backToHome -> haltAndGoToHome
+ 	
+ 	//Requirement R-continueExplore
+	Plan resumeExploration[
+  		ReplaceRule robotState(_) with robotState( exploring );		
+		emit robotState : robotState( exploring )
+	]switchTo doActions
+	
+	//Requirement R-backHome
+	Plan haltAndGoToHome[
+		ReplaceRule robotState(_) with robotState( comingBackToHomeSinceHalt );		
+		emit robotState : robotState( comingBackToHomeSinceHalt );
+		addRule halted(1);
+		javaRun it.unibo.planning.planUtil.clearCurrentPlan()
+	]switchTo backToHome
+	
+	Plan handleError[ println("mind ERROR") ]
+		 
+
+  //Requirement R-stopAtBag
+  Plan handleFixedObstacleCases[
+     	[ !? curPos(X,Y,D)  ] println( handleFixedObstacleCases_1(X,Y,D) );
+     	javaRun it.unibo.planning.planUtil.markCellAsObstacle(); 
+		onMsg moveMsgCmdObstacle : moveMsgCmdObstacle(moveWDuration(T)) -> javaRun it.unibo.utils.movePlanUtil.moveNoMap("s",T) ;
+		javaRun it.unibo.utils.movePlanUtil.moveNoMap("h","100") ;
+      	javaRun it.unibo.planning.planUtil.showMap() 
+   ] 
+   switchTo handleObstacleBomb
+   
+   //Requirement R-takePhoto
+   State handleObstacleBomb[
+   	[ !? curPos(X,Y,D)  ] demo obstacleCell( X , Y , D, _, _);
+	[ !? goalResult(obstacleCell(X,Y,D,X1,Y1))] println(obstacleCell(X1,Y1));
+	[ !? goalResult(obstacleCell(X,Y,D,X1,Y1))] forward worldobserver -m cellValueMsg : cellValue(X1,Y1,x);
+	println("Taking Photo");
+	javaRun it.unibo.planning.photoUtils.sendPhoto();
+    [ ?? goalResult(obstacleCell(X,Y,D,X1,Y1))] publishEvent "unibo/qasys" -e  obstaclePhoto: obstaclePhoto(PHOTO,curPos(X1,Y1,D));
+   	ReplaceRule robotState(_) with robotState( waitingObstacleClassification ); 	 	
+	emit robotState : robotState( waitingObstacleClassification );
+   	println("Sono in attesa di istruzioni")
+   ]transition whenTime 6000000 -> doActions
+   whenMsg backToHomeSinceBomb -> backToHomeSinceBomb,
+   whenMsg continueExploration -> continueIsNotBomb
+  	
+  	//Requirement R-continueExploreAfterPhoto 
+  	Plan continueIsNotBomb [
+  		javaRun it.unibo.planning.planUtil.clearCurrentPlan();
+  		[ !? curPos(X,Y,D)  ] demo obstacleCell( X , Y , D, _, _);
+  		[ ?? goalResult(obstacleCell(X,Y,D,X1,Y1))] demo goalIsObstacle(X1,Y1);
+  		ReplaceRule robotState(_) with robotState( exploring );
+		emit robotState : robotState(exploring);
+  		[ ?? goalResult(failure)]{
+  			[ !? curGoal(N,N)  ]  javaRun it.unibo.planning.planUtil.setGoal(N,N);
+  			[ !? curGoal(N,N)  ]  javaRun it.unibo.planning.planUtil.doPlanEnterprising()  // ;javaOp "debugStep()"  
+  		}else{
+  			selfMsg backToHome: backToHome(1)
+  		}  		
+  	]transition whenTime 20 -> doActions
+  	whenMsg backToHome -> backToHome
+    
+    //Requirement R-backHomeSinceBomb 	 
+  	Plan backToHomeSinceBomb  [
+		ReplaceRule robotState(_) with robotState( comingBackToHomeSinceBomb);
+		emit robotState : robotState( comingBackToHomeSinceBomb );
+		println("Going to home since bomb");
+		addRule bombDetected(1);
+		[ !? curPos(X,Y,D)  ] demo obstacleCell( X , Y , D, _, _);
+		[ !? goalResult(obstacleCell(X,Y,D,X1,Y1))] addRule bombToRetrieve(X1,Y1);
+		[ ?? goalResult(obstacleCell(X,Y,D,X1,Y1))] forward worldobserver -m bombPosition : bombPosition(X1,Y1)
+ 	]
+ 	transition whenTime 100 -> backToHome
+  	 
+  	 
+  	 
+	State handleSonar resumeLastPlan [ 
+		println("handleSonarrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr");
+		printCurrentEvent;
+      	onEvent sonarDetect : obstacle(X) ->  
+      		publishEvent "unibo/qasys" -e sonarDetect : obstacle(X);
+
+     	onEvent sonar : sonar(SONAR, TARGET, DISTANCE) ->  
+     		publishEvent "unibo/qasys" -e sonar : sonar(SONAR, TARGET, DISTANCE)	
+	]
+	
+	State haltAppl resumeLastPlan[
+		println("mind HALT APPLICATION") 		
+	]
+	switchTo waitAndCheckCond
+	
+}

@@ -1,0 +1,32 @@
+/*
+*
+* A GraphViz DOT FSM description 
+* Please use a GraphViz visualizer (like http://www.webgraphviz.com)
+*  
+*/
+
+digraph finite_state_machine {
+	rankdir=LR
+	size="8,5"
+	
+	init [ color = red ][ fontcolor = red ][ penwidth = 3 ]
+	sendCommandStart [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleBombPosition [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleMap [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	bombRetrieved [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	buildMap [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleMsg [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	
+	handleBombPosition -> handleMsg [ label = "timeout(100)" ][ color = green ][ fontcolor = green ]
+	buildMap -> handleMsg [ label = "mapCompleted" ][ color = black ][ fontcolor = black ]
+	handleMsg -> handleBombPosition [ label = "bombPosition" ][ color = black ][ fontcolor = black ]
+	init -> handleMsg [ label = "switch" ][ color = black ][ fontcolor = black ]
+	handleMsg -> handleToutBuiltIn [ label = "timeout(6000000)" ][ color = green ][ fontcolor = green ]
+	buildMap -> buildMap [ label = "timeout(20)" ][ color = green ][ fontcolor = green ]
+	handleMsg -> handleMap [ label = "allMap" ][ color = black ][ fontcolor = black ]
+	handleMsg -> sendCommandStart [ label = "startRetrievingMsg" ][ color = black ][ fontcolor = black ]
+	bombRetrieved -> handleMsg [ label = "timeout(100)" ][ color = green ][ fontcolor = green ]
+	handleMap -> buildMap [ label = "switch" ][ color = black ][ fontcolor = black ]
+	sendCommandStart -> handleMsg [ label = "switch" ][ color = black ][ fontcolor = black ]
+	handleMsg -> bombRetrieved [ label = "bombRetrieved" ][ color = black ][ fontcolor = black ]
+}

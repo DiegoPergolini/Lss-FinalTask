@@ -1,0 +1,34 @@
+/*
+ * ==============================================================
+ * it\unibo\mbot2018.qa\src\nanoControl.qa
+ * ==============================================================
+ */ 
+System nanoControl
+ 
+Event sonarEvent  : distance(D, DIR, POS) 	//from SonarInCObserver     
+Context ctxNanoControl ip [ host="localhost"   port=8098 ] -httpserver
+ 
+QActor robotnano context ctxNanoControl   { 
+  	State init normal [  
+ 		println("robotdemo STARTS"); 		
+  		javaRun it.unibo.robotOnRaspOnly.basicRobotExecutor.setUp()
+  	]      
+ 	switchTo  someMove
+ 	
+ 	State someMove[   
+ 		delay 1000;
+  		javaRun it.unibo.robotOnRaspOnly.basicRobotExecutor.doMove( "w");
+   		delay 1000;
+   		javaRun it.unibo.robotOnRaspOnly.basicRobotExecutor.doMove( "s");
+   		delay 1000;
+   		javaRun it.unibo.robotOnRaspOnly.basicRobotExecutor.doMove( "h")
+   	]
+  	transition stopAfter 600000
+  		whenEvent sonarEvent -> handleSonarEvent
+  		finally repeatPlan   
+    
+  	State handleSonarEvent resumeLastPlan [ 
+ 		printCurrentEvent
+ 	]
+ 
+ }    

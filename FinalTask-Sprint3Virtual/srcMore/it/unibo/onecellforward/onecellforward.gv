@@ -1,0 +1,35 @@
+/*
+*
+* A GraphViz DOT FSM description 
+* Please use a GraphViz visualizer (like http://www.webgraphviz.com)
+*  
+*/
+
+digraph finite_state_machine {
+	rankdir=LR
+	size="8,5"
+	
+	init [ color = red ][ fontcolor = red ][ penwidth = 3 ]
+	startWork [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	probableFixedObstacle [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	endMoveForward [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	sendAnswerAfterCollision [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleStop [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	consumePendingCollisions [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleError [ color = blue ][ fontcolor = blue ][ penwidth = 3 ]
+	
+	init -> handleStop [ label = "haltAppl" ][ color = black ][ fontcolor = black ]
+	startWork -> endMoveForward [ label = "timeout(255)" ][ color = green ][ fontcolor = green ]
+	probableFixedObstacle -> consumePendingCollisions [ label = "switch" ][ color = black ][ fontcolor = black ]
+	consumePendingCollisions -> handleError [ label = "timeout(3000)" ][ color = green ][ fontcolor = green ]
+	consumePendingCollisions -> consumePendingCollisions [ label = "collisionDispatch" ][ color = black ][ fontcolor = black ]
+	startWork -> probableFixedObstacle [ label = "collisionDispatch" ][ color = black ][ fontcolor = black ]
+	startWork -> handleStop [ label = "haltAppl" ][ color = black ][ fontcolor = black ]
+	consumePendingCollisions -> handleStop [ label = "haltAppl" ][ color = black ][ fontcolor = black ]
+	init -> startWork [ label = "moveMsgCmd" ][ color = black ][ fontcolor = black ]
+	endMoveForward -> init [ label = "switch" ][ color = black ][ fontcolor = black ]
+	consumePendingCollisions -> sendAnswerAfterCollision [ label = "obstacleNear" ][ color = black ][ fontcolor = black ]
+	handleStop -> init [ label = "switch" ][ color = black ][ fontcolor = black ]
+	init -> handleToutBuiltIn [ label = "timeout(6000000)" ][ color = green ][ fontcolor = green ]
+	sendAnswerAfterCollision -> init [ label = "switch" ][ color = black ][ fontcolor = black ]
+}

@@ -1,0 +1,5 @@
+plan(1,init, sentence(true,not here StateMoveNormal,'','' ))
+plan(2,init, sentence(true,delay( 1000) ,'','' ))
+plan(3,init, sentence(true,move(print("player STARTS")),'','' ))
+plan(1,execMove, sentence(true,msgswitch(robotCmd, robotCmd( M,T) , not here StateMoveNormal),'','' ))
+plan(2,execMove, sentence(true,move(resumeplan),'','' ))

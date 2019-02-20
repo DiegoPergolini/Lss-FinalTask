@@ -1,0 +1,94 @@
+/*
+ * ==============================================================
+ * it\unibo\mbot2018.qa\src\demoRobot.qa
+ * ==============================================================
+ */ 
+System demoRobot      
+ 
+Dispatch robotCmd : cmd(X)       			 //X=w|a|s|d|h
+Event sonarEvent  : distance(D, DIR, POS) 	//from SensorObserver
+ 
+Event usercmd     : usercmd(X)    //from robot GUI;  X=robotgui(CMD) CMD=s(low)
+Event inputcmd    : usercmd(X)    //from input GUI;  X=executeInput( do(G,M) )
+Event alarm       : alarm(X)      //from red button  
+Event obstacle    : obstacle(X)   //from red button and from SensorObserver
+Event sonarDetect : sonarDetect(X)					//From (virtual robot) sonar
+Event sonar  	  : sonar(SONAR, TARGET, DISTANCE)	//From (virtual) sonar
+    
+//Context ctxConsole   ip [ host="localhost"   port=8078 ] -g cyan -httpserver     
+Context ctxRobot  ip [ host="localhost"   port=8098 ] -httpserver 
+ 
+QActor cmdrobotconverter context ctxRobot{ 
+ 	State init normal [  ]
+	transition stopAfter 600000
+	whenEvent usercmd -> handleUserCmd
+	finally repeatPlan   
+	   
+	State handleUserCmd resumeLastPlan[//MAPPING AFTER EXPERIMENTATION
+		onEvent usercmd : usercmd( robotgui(h(X)) ) -> 
+			 	forward robotdemo -m robotCmd : cmd("h");
+		onEvent usercmd : usercmd( robotgui(w(X)) ) ->
+				forward robotdemo -m robotCmd : cmd("w");
+		onEvent usercmd : usercmd( robotgui(a(X)) ) ->
+				forward robotdemo -m robotCmd : cmd("a");
+		onEvent usercmd : usercmd( robotgui(d(X)) ) ->
+				forward robotdemo -m robotCmd : cmd("d");
+		onEvent usercmd : usercmd( robotgui(s(X)) ) ->
+				forward robotdemo -m robotCmd : cmd("s")
+	]
+}
+
+QActor robotdemo context ctxRobot   { 
+Rules{
+	robotType( "robotVirtual", setuparg("localhost") ).
+	//robotType( "robotRealMbot", setuparg("COM6") ).
+	//robotType( "robotRealRaspOnly", setuparg("") ).
+}
+ 	State init normal [  
+  		delay	5000; 
+ 		println("robotdemo STARTS"); 	
+ 		[ !? robotType(T,setuparg(A))] 
+ 				javaRun it.unibo.utils.allRobots.setUp(T,A)
+  	]      
+ 	switchTo  someMove
+ 	
+ 	State someMove[   
+ 		delay 1000;
+  		javaRun it.unibo.utils.allRobots.doMove( "w");
+   		delay 1000;
+   		javaRun it.unibo.utils.allRobots.doMove( "s");
+   		delay 1000;
+   		javaRun it.unibo.utils.allRobots.doMove( "h")
+   	]
+   	switchTo doJob
+   	
+ 	State doJob  [
+ 		 println("waiting for an user command ...")
+ 	]
+  	transition stopAfter 600000
+ 		whenMsg robotCmd:cmd(M) do javaRun it.unibo.utils.allRobots.doMove(M),
+ 		whenEvent sonarEvent -> handleSonarEvent,
+ 		whenEvent sonar      -> handleSonarEvent
+ 		finally repeatPlan   
+    
+  	State handleSonarEvent resumeLastPlan [ 
+ 		printCurrentEvent
+ 	]
+ 
+ }    
+ 
+ /*
+ * Activate the virtual enevironment W-Env
+ */
+/* 
+QActor startscene context ctxRobot {
+Rules{
+	wenv("C:/Didattica2018Work/iss2018Lab/it.unibo.mbot2018/Soffritti/server/src/main.js 8999").
+}
+	Plan init normal[ 
+ 		println("startscene starts...");
+		nodeOp "C:/Didattica/STUDENTI/Cardace-Mearini-Sorrentino/ConfigurableThreejsApp-master/server/src/main.js 8999 " -o
+ 	    //[ !? wenv(P)] nodeOp "C:/Didattica2018Work/iss2018Lab/it.unibo.mbot2018/Soffritti/server/src/main.js 8999" -o
+ 	] 	
+}
+ */  

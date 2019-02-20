@@ -1,0 +1,4 @@
+plan(1,doBlink, sentence(true,msgswitch(ledBlink, ledBlink , move(print(ledBlinkMsg))),'','' ))
+plan(2,doBlink, sentence(true,not here StateMoveNormal,'','' ))
+plan(1,ledOff, sentence(true,not here StateMoveNormal,'','' ))
+plan(2,ledOff, sentence(true,move(print("LED  OFF")),'','' ))

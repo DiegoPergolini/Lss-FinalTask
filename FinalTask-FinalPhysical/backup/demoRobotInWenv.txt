@@ -1,0 +1,71 @@
+/*
+ * ==============================================================
+ * it\unibo\mbot2018.qa\src\demoRobotInWenv.qa
+ * ==============================================================
+ */ 
+System demoRobotInWenv
+Dispatch obstacle : obstacle(TARGET) 
+Dispatch robotCmd : cmd(X)       			 //X=w|a|s|d|h
+
+Event sonarDetect : obstacle(X)		//From wenv-robotsonar-by clientTcpForVirtualRobot
+Event sonar  	  : sonar(SONAR, TARGET, DISTANCE)	//From wenv sonar
+    
+Context ctxRobotInWenv     ip [ host="localhost"   port=8098 ] -httpserver
+EventHandler evobstacle for sonarDetect -print {  	
+	forwardEvent robotdemoinwenv -m obstacle  
+};
+
+QActor robotdemoinwenv context ctxRobotInWenv   { 
+Rules{
+	move(w).	move(d).	move(w). 	move(s).    move(a).	
+	move(d).	move(w).	move(a).    move(s).	move(h).	
+ }
+ 	State init normal [  
+  		println("robotdemoinwenv STARTS"); 		
+  		javaRun it.unibo.robotVirtual.basicRobotExecutor.setUp("localhost")
+  	]      
+ 	switchTo  someMove
+ 	
+ 	State someMove[   
+ 		[ !? move(X)] println( doingMove(X) );
+ 		[ ?? move(X) ] selfMsg robotCmd : cmd(X)
+   	]
+   	transition stopAfter 100
+   		whenMsg robotCmd -> execMove
+   		
+    State execMove resumeLastPlan[
+    	onMsg robotCmd : cmd(MOVE) ->
+    		javaRun it.unibo.robotVirtual.basicRobotExecutor.doMove( MOVE )
+    ]
+   	transition whenTime 1000 -> someMove
+   		whenMsg obstacle -> handleObstacle,
+    	whenEvent sonar  -> handleSonarEvent	 
+     
+  	State handleObstacle resumeLastPlan [ 
+  		printCurrentMessage;
+  		println("Now I'm handling the presence of an obstacle (could be a wall)")
+  	]
+   	transition whenTime 100 -> someMove
+   		whenEvent sonar  -> handleSonarEvent	 
+ 
+   	State handleSonarEvent  [ 
+   		printCurrentEvent;
+   		println("Now the robot has been detected by the sonar in the WEnv")
+   	]
+ 	switchTo someMove
+ }    
+ 
+ /*
+ * Actor that activates the virtual enevironment W-Env
+ */
+/*   
+QActor startscene context ctxRobotInWenv {
+Plan init normal[ 
+ println("startscene starts...");
+ nodeOp 
+ "C:/Didattica2018Work/iss2018Lab/it.unibo.mbot2018/Soffritti/server/src/main.js 8999" -o
+] 	
+}
+*/
+//localhost:8090
+ 

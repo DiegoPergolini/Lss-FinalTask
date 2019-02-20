@@ -1,0 +1,42 @@
+/*
+*
+* A GraphViz DOT FSM description 
+* Please use a GraphViz visualizer (like http://www.webgraphviz.com)
+*  
+*/
+
+digraph finite_state_machine {
+	rankdir=LR
+	size="8,5"
+	
+	init [ color = red ][ fontcolor = red ][ penwidth = 3 ]
+	checkCond [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleBombPosition [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleCellValueChange [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleChange [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleBombRetrieved [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handlePhoto [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	handleRobotStateChange [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	consoleUpdate [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	sendMapToRetriever [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	second [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	
+	second -> handleRobotStateChange [ label = "robotChangeState" ][ color = black ][ fontcolor = black ]
+	handlePhoto -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	handleBombRetrieved -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	handleChange -> consoleUpdate [ label = "timeout(200)" ][ color = green ][ fontcolor = green ]
+	checkCond -> init [ label = "switch" ][ color = black ][ fontcolor = black ]
+	handleCellValueChange -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	second -> handleToutBuiltIn [ label = "timeout(6000000)" ][ color = green ][ fontcolor = green ]
+	consoleUpdate -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	second -> sendMapToRetriever [ label = "discoveryAtHome" ][ color = black ][ fontcolor = black ]
+	second -> handleBombPosition [ label = "bombPosition" ][ color = black ][ fontcolor = black ]
+	sendMapToRetriever -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	second -> handleChange [ label = "temperatureChangeValue" ][ color = black ][ fontcolor = black ]
+	init -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	second -> second [ label = "repeat "][ style = dashed ][ color = blue ][ fontcolor = blue ]
+	handleBombPosition -> second [ label = "switch" ][ color = red ][ fontcolor = red ][ dir = both ]
+	second -> handleBombRetrieved [ label = "bombRetrievedMsg" ][ color = black ][ fontcolor = black ]
+	second -> handleCellValueChange [ label = "cellValueMsg" ][ color = black ][ fontcolor = black ]
+	handleRobotStateChange -> consoleUpdate [ label = "timeout(200)" ][ color = green ][ fontcolor = green ]
+}

@@ -1,0 +1,24 @@
+/*
+*
+* A GraphViz DOT FSM description 
+* Please use a GraphViz visualizer (like http://www.webgraphviz.com)
+*  
+*/
+
+digraph finite_state_machine {
+	rankdir=LR
+	size="8,5"
+	
+	init [ color = red ][ fontcolor = red ][ penwidth = 3 ]
+	doBlink [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	ledOff [ color = black ][ fontcolor = black ][ penwidth = 3 ]
+	
+	init -> handleToutBuiltIn [ label = "timeout(600000)" ][ color = green ][ fontcolor = green ]
+	ledOff -> init [ label = "switch" ][ color = black ][ fontcolor = black ]
+	init -> init [ label = "repeat "][ style = dashed ][ color = blue ][ fontcolor = blue ]
+	init -> ledOff [ label = "ledOff" ][ color = black ][ fontcolor = black ]
+	init -> doBlink [ label = "ledBlink" ][ color = black ][ fontcolor = black ]
+	doBlink -> doBlink [ label = "ledBlink" ][ color = black ][ fontcolor = black ]
+	doBlink -> doBlink [ label = "timeout(500)" ][ color = green ][ fontcolor = green ]
+	doBlink -> ledOff [ label = "ledOff" ][ color = black ][ fontcolor = black ]
+}
