@@ -107,10 +107,11 @@ gradle-app.setting
 
 
 /ReadMe.html
-nodeCode/node_modules/
-nodeCode/robot/node_modules/
-nodeCode/server/node_modules/
-Soffritti/server/node_modules
+ConsoleFrontend/nodeCode/node_modules/
+ConsoleFrontend/nodeCode/robot/node_modules/
+ConsoleFrontend/nodeCode/server/node_modules/
+ConsoleFrontend/Soffritti/server/node_modules
+*/nodeCode/
 .lck/ 
 docker/
 /.metadata/
