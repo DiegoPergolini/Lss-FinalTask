@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html>
+<head>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script>
+$(document).ready(function(){
+    $("#buttonDemoJQ").click(function(){
+        $("#test").hide();
+    });
+});
+</script>
+</head>
+<body>
+<h1>JQuery example</h1>
+
+<h2>This is a heading</h2>
+
+<p>This is a paragraph.</p>
+<p id="test">This is another paragraph.</p>
+
+<button id="buttonDemoJQ">Click me</button>
+
+<hr/>
+
+
+<h1>Ajax example</h1>
+
+<p>
+Please run <tt>node serverRobotCmd.js false</tt>
+</p>
+<div id="demo">
+<button type="button" onclick="loadTheModel()">Load the model</button>
+</div>
+
+<div id="output">Output area (to be filled) ... </div>
+<script>
+function loadTheModel() {
+	(function($){
+		$.ajax({
+			url:     "http://localhost:8080/model",
+			method:  'GET',
+			dataType: 'json',
+			success: function(data){ 
+				console.log(data);
+				$('#output').html( showTheModel(data) ); 
+			},
+         	 error: function (data, textStatus, jqXHR) {
+            	console.log(data);
+          	}
+       });//ajax
+	})(jQuery);
+};
+
+
+function showTheModel( model ){
+	var outS = "<tt>";
+	outS = outS + "Description:  " + model.robot.description + "<br/>";
+	outS = outS + "Model items:  " + Object.keys(model).length + "<br/>";
+	//outS = outS + "Model items:  " + "<br/>";
+	for( var key in model  ){
+		console.log( key );
+		if( key != "url" )
+		outS = outS + "Item Name=" +  model[key].name + "&ensp; Item link=  " + model[key].link + "<br/>";
+	}
+	outS = outS + "</tt>";
+	return outS
+}
+
+//A 'classical' example
+function loadDoc() {
+  var xhttp = new XMLHttpRequest("http://localhost:8080/");
+  xhttp.onreadystatechange = function() {
+    if (this.readyState == 4 && this.status == 200) {
+      document.getElementById("demo").innerHTML = this.responseText;
+    }else{
+    	document.getElementById("demo").innerHTML = "Sorry ... status=" + this.status;
+    }
+  };
+  xhttp.open("GET", "/model", true);
+  xhttp.send();
+}
+</script>
+
+</body>
+</html>

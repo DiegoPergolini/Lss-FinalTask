@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script>
+       var socket  = io.connect();
+       socket.on('connect', function(){ console.log("socket connected");});
+       socket.on('message', function(v){ document.getElementById('display').innerHTML=v; });
+</script>
+ 
+</head>
+
+<body>
+<div class="container">
+<h1><%= title %></h1>
+
+<h3><%= res %></h3> 
+  
+<p>
+Back to main page: <a href="http://<%=host%>">main page</a>  
+</p>
+</div>
+</body>

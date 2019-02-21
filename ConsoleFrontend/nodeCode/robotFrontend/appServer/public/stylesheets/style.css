@@ -1,0 +1,220 @@
+body {
+  padding: 10px;
+  font: 14px "Lucida Grande", Helvetica, Arial, sans-serif;
+
+   background-color: #243342;
+   color: #ecf0f1;
+}
+
+#title {
+    font-size: 40px;
+    text-align: center;
+    padding-bottom: 6vh;
+}
+
+.subtitle {
+    font-size: 28px;
+    margin-bottom: 2vh;
+}
+
+#application-command-title {
+    text-align: center;
+    margin-bottom: 4vh;
+}
+
+.subsubtitle {
+    font-size: 20px;
+    text-align: start;
+    margin-bottom: 2vh;
+}
+
+table.maptable {
+    width:70%;
+}
+table.maptable, table.maptable th, table.maptable td {
+    border: 1px solid black;
+    border-collapse: collapse;
+}
+table.maptable th, table.maptable td{
+    padding: 15px;
+    text-align: left;
+}
+
+#command-area {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    padding: 0 10%;
+}
+
+#application-command {
+
+}
+
+#exploration-commands {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-around;
+}
+
+#manual-commands {
+    display: flex;
+    flex-direction: column;
+}
+
+.commands-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: start;
+    align-items: center;
+}
+
+#manual-commands-row {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+}
+
+.button {
+    width: 150px;
+
+    margin: 5px;
+    border-radius: 5px;
+    font-size: 20px;
+
+    color: #ecf0f1;
+}
+
+.input {
+    width: 150px;
+
+    margin-right: 5px;
+    border-radius: 5px;
+    font-size: 20px;
+
+    text-align: center;
+}
+
+.application-button {
+    border: 1px solid #e74c3c;
+    background: #e74c3c;
+}
+
+#bomb-detection {
+    display: flex;
+    flex-direction: column;
+}
+
+#obstacle-image {
+    width: 100%;
+    justify-content: center;
+}
+
+.bomb-button {
+    border: 1px solid #d35400;
+    background: #d35400;
+}
+
+.temperature-button {
+
+    width: 100px;
+
+    border: 1px solid #d35400;
+    background: #d35400;
+}
+
+.button:disabled {
+    border: 1px solid #7f8c8d;
+    background: #7f8c8d;
+}
+
+.manual-button {
+    border: 0;
+    width: 70px;
+    height: 70px;
+}
+
+#forward-button {
+    background: url(../images/up-arrow.png) no-repeat;
+    background-size: contain;
+}
+
+#left-button {
+    background: url(../images/left-arrow.png) no-repeat;
+    background-size: contain;
+}
+
+#right-button {
+    background: url(../images/right-arrow.png) no-repeat;
+    background-size: contain;
+}
+
+#backward-button {
+    background: url(../images/down-arrow.png) no-repeat;
+    background-size: contain;
+}
+
+#stop-button {
+    border: 1px solid #ecf0f1;
+    background: #ecf0f1;
+
+    margin: 0 10px;
+
+    width: 50px;
+    height: 50px;
+
+    border-radius: 5px;
+}
+
+.info {
+    display: flex;
+    flex-direction: row;
+}
+
+.label {
+    color: #d35400;
+    font-size: 20px;
+    margin-right: 20px;
+    margin-left: 10px;
+}
+
+.value {
+    font-size: 20px;
+}
+
+#maptable, td {
+    border: 3px solid #d35400;
+}
+
+#map {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    font-size: 22px;
+    font-family: "Agency FB", sans-serif;
+
+    margin-top: 7vh;
+}
+
+table {
+    border-collapse: collapse;
+}
+
+td {
+    width: 30px;
+    height: 30px;
+    text-align: center;
+    color: #1b1b1c;
+}
+
+/*table#t01.maptable tr:nth-child(even) {*/
+    /*background-color: #eee;*/
+/*}*/
+/*table#t01.maptable tr:nth-child(odd) {*/
+    /*background-color: #fff;*/
+/*}*/
+/*table#t01.maptable th {*/
+    /*background-color: black;*/
+    /*color: white;*/
+/*}*/

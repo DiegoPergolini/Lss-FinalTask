@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script>
+       var socket  = io.connect();
+       socket.on('connect', function(){ console.log("socket connected");});
+       socket.on('message', function(v){ document.getElementById('displaySonar').innerHTML=v; });
+</script>
+ 
+</head>
+
+<body>
+<div class="container">
+<h1><%= title %></h1>
+
+<h3>Devices on the robot</h3> 
+  
+<ul>
+<% Object.keys(model.devices.resources).forEach( function( dev )  { %>
+   <li><b><%= dev  %></b> (after a GET) :
+       name=<%= model.devices.resources[dev].name %>, 
+       value=<%= model.devices.resources[dev].value %></li>
+   
+ <% } );%>
+</ul>
+   
+			<table style="background-color: #d9f7f3" >
+					<tr>
+						<td></td>
+						<td align="center">
+							<form action="/robot/actions/commands/w" method="post">
+							  	<input type="submit" style="font-size:50px;" value="forward" >
+							</form>
+						</td>
+						<td></td>
+					</tr>
+					
+
+					<tr>
+						<td align="center">
+							<form action="/robot/actions/commands/a" method="post">
+							<font size="3" color="red">
+							  	<input type="submit" style="font-size:50px;"  value="left" >
+							</font>
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/h" method="post">
+							  	<input type="submit" style="font-size:60px;"  value="stop"  >
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/d" method="post">
+							  	<input type="submit" style="font-size:50px;" value="right"  >
+							</form>
+						</td>
+					</tr>
+					<tr>
+						<td></td>
+						<td align="center">
+							<form action="/robot/actions/commands/s" method="post">
+							  	<input type="submit" style="font-size:50px;"  value="backward"  >
+							</form>
+						</td>
+						<td></td>
+					</tr>
+				</table>
+			 
+ 
+<br/><br/>
+</div>
+ 
+	<div>
+ 		<b>COMMAND ANSWER</b> (after a cmd): <span id="displayCmd"><%= res %></span>
+	</div>
+	<div>
+ 		<b>ROBOT STATE</b> (after a cmd):   <span id="displayAnsw"><%= robotstate %></span>
+	</div>
+	<div>
+ 		<b>ROBOT SONAR</b> (dynamic):   <span id="displaySonar"></span>
+	</div>
+ <p> 
+ <a href="http://<%= refToEnv %>">Description  of the Robot Environment</a> (<%= refToEnv %>)
+ </p>
+</body>
+</html>

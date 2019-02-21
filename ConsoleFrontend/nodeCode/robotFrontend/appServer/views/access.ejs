@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script>
+       var socket  = io.connect();
+       var robotPos = {
+           x:0,
+		   y:0
+	   }
+       socket.on('connect', function(){
+           console.log("socket connected");
+           // console.log(model.links.robotenv.envdevices.resources.map.cells);
+		   var tableModel = [];
+           var table = document.getElementById("maptable");
+
+		   <%for (var i = 0; i <  envmodel.resources.map.cells.length; i++) { %>
+			   var x = parseInt("<%= envmodel.resources.map.cells[i].x%>");
+			   var y = parseInt("<%= envmodel.resources.map.cells[i].y%>");
+			   var s = "<%= envmodel.resources.map.cells[i].s%>";
+
+				console.log(x, y, s);
+
+				var row = tableModel[y];
+				if (!row) {
+                    tableModel[y] = [];
+                }
+
+                tableModel[y][x] = s;
+		   <%}%>
+
+		   for (var i=0; i<tableModel.length; i++) {
+		       var row = table.insertRow(-1);
+
+		       var r = tableModel[i];
+		       for (var j=0; j<r.length; j++) {
+                   var cell = row.insertCell(-1);
+		           if (r[j]) {
+
+		               cell.style.background = "#afb8bc";
+
+		               if (r[j] === '1') {
+		                   cell.innerHTML="";
+                       } else {
+                           cell.innerHTML = r[j]
+                       }
+                   } else {
+                       cell.innerHTML="";
+                   }
+               }
+           }
+
+		   // tableModel.forEach(r => {
+		   //     var row = table.insertRow(-1);
+		   //     r.forEach(c => {
+		   //         row.insertCell(-1).innerHTML = c;
+			//    });
+		   // });
+
+       });
+
+       socket.on('message', function(data){
+           console.log(data);
+           if(data.indexOf("worldState")>=0){
+               const worldState = data.split('worldState(')[1].split(")),")[0]+")";
+               console.log(worldState);
+               const tempString = worldState.split(',')[0];
+               const robotStateString = worldState.split(',')[1];
+               const tempValue = parseFloat(tempString.split('(')[1].replace(")",""));
+               const stateValue = robotStateString.split('(')[1].replace(")","");
+               document.getElementById('temperatureState').innerHTML=tempValue;
+               // document.getElementById('robotState').innerHTML= stateValue;
+
+               handleRobotStateChanged(stateValue);
+
+           }else if( data.indexOf("mapUpdate")>=0){
+               const mapUpdate = data.split('mapUpdate(')[1].split("),")[0];
+               const values = mapUpdate.split(',');
+               const x = parseInt(values[0]);
+               const y = parseInt(values[1]);
+               const s = values[2];
+
+               var table = document.getElementById("maptable");
+
+               var row = table.rows[y];
+               if (!row) {
+                   row = table.insertRow(-1);
+			   }
+				console.log(row);
+			   var cell = row.cells[x];
+               if (!cell) {
+                   for (var i=0; i<x; i++) {
+                       if(!row.cells[i]) {
+                           row.insertCell(-1).innerHTML="";
+					   }
+				   }
+                   cell = row.insertCell(-1);
+			   }
+
+			   if(s==='1' || s==='R' || s==='X') {
+                   cell.style.background = "#afb8bc";
+			   }
+
+			   if(s==='1') {
+                   cell.innerHTML="";
+			   } else {
+                   cell.innerHTML=s;
+			   }
+
+
+
+
+               // document.getElementById(y).children[x].innerHTML=s;
+               console.log(x,y,s);
+
+		   }else if(data.indexOf("robotPos")>=0){
+               const mapUpdate = data.split('robotPos(')[1].split("),")[0];
+               const values = mapUpdate.split(',');
+               const x = parseInt(values[0]);
+               const y = parseInt(values[1]);
+               const s = values[2];
+
+               var table = document.getElementById("maptable");
+
+               var row = table.rows[y];
+               if (!row) {
+                   row = table.insertRow(-1);
+               }
+
+               var cell = row.cells[x];
+               if (!cell) {
+                   cell = row.insertCell(-1);
+               }
+               cell.innerHTML="R";
+               table.rows[robotPos.y].cells[robotPos.x].innerHTML="";
+
+               robotPos = {
+                   x: x,
+				   y: y
+               }
+               console.log(data);
+		   }else if( data.indexOf("photoM")>=0) {
+               console.log("photoM");
+               var photo = data.split('photoM(')[1].split("),")[0];
+               photo = photo.split(")',")[0];
+
+               var image = new Image();
+               image.src = "data:image/png;base64," + photo;
+               image.width = 200;
+
+               document.getElementById("obstacle-image").appendChild(image);
+           }
+       });
+
+       function handleRobotStateChanged(state) {
+
+           var robotState = document.getElementById('robotState');
+
+           var exploreButton = document.getElementById('explore-button');
+           var haltButton = document.getElementById('halt-button');
+           var resumeButton = document.getElementById('resume-button');
+           var backHomeButton = document.getElementById('back-home-button');
+           var startRetriverButton = document.getElementById('start-retriever-button');
+           var bombButton = document.getElementById('bomb-button');
+           var notBombButton = document.getElementById('not-bomb-button');
+
+           exploreButton.disabled = true;
+           haltButton.disabled = true;
+           resumeButton.disabled = true;
+           backHomeButton.disabled = true;
+           startRetriverButton.disabled = true;
+           bombButton.disabled = true;
+           notBombButton.disabled = true;
+
+
+			switch (state) {
+				case "readyToStart":
+				    robotState.innerHTML = "Ready to start";
+                    exploreButton.disabled = false;
+				    break;
+				case "exploring":
+                    robotState.innerHTML = "Exploring";
+                    haltButton.disabled = false;
+                    break;
+				case "waitingSecondRobot":
+                    robotState.innerHTML = "Waiting to remove the bomb";
+                    startRetriverButton.disabled = false;
+                    break;
+				case "stopped":
+                    robotState.innerHTML = "Stopped";
+                    resumeButton.disabled = false;
+                    backHomeButton.disabled = false;
+                    break;
+				case "waitingObstacleClassification":
+                    robotState.innerHTML = "Waiting for obstacle classification";
+                    bombButton.disabled = false;
+                    notBombButton.disabled = false;
+                    break;
+				case "comingBackToHomeSinceBomb":
+                    robotState.innerHTML = "Coming back to home since bomb";
+                    break;
+				case "comingBackToHomeSinceHalt":
+                    robotState.innerHTML = "Coming back to home since halt";
+                    break;
+                case "atHomeWithInvalidCondition":
+                    robotState.innerHTML = "At Home With Invalid Condition";
+                    break;
+                case "comingBackToHomeSinceInvalidCondition":
+                    robotState.innerHTML = "Coming back to home since invalid condition";
+                    break;
+            }
+	   }
+</script>
+ 
+</head>
+
+<body>
+
+<h1 id="title"><%= title %></h1> <!-- from appFrontEndRobot -->
+
+<div id="command-area">
+	<div id="application-command-container">
+		<h2 id="application-command-title" class="subtitle">Application Commands</h2>
+		<div id="application-command">
+
+			<h3 class="subsubtitle">Robot Explorer</h3>
+			<div id="exploration-commands">
+				<div class="commands-row">
+					<form action="/applCommand/explore" method="post">
+						<input id="explore-button" class="button application-button" type="submit" value="Explore" disabled>
+					</form>
+					<form action="/applCommand/halt" method="post">
+						<input id="halt-button" class="button application-button" type="submit"  value="Halt" disabled>
+					</form>
+				</div>
+				<div class="commands-row">
+					<form action="/applCommand/resume" method="post">
+						<input id="resume-button" class="button application-button" type="submit" value="Resume" disabled>
+					</form>
+					<form action="/applCommand/backtohome" method="post">
+						<input id="back-home-button" class="button application-button" type="submit"  value="Back to Home" disabled>
+					</form>
+				</div>
+			</div>
+
+			<h3 class="subsubtitle">Robot Retriever</h3>
+			<div class="commands-row">
+				<form action="/applCommand/startretriever" method="post">
+					<input id="start-retriever-button" class="button application-button" type="submit" value="Start Retriever" disabled>
+				</form>
+			</div>
+
+			<h3 class="subsubtitle">Bomb Detection</h3>
+			<div id="bomb-detection">
+				<div id="obstacle-image"></div>
+				<div class="commands-row">
+					<form action="/applCommand/isbomb" method="post">
+						<input id="bomb-button" class="button bomb-button" type="submit" value="Bomb" disabled>
+					</form>
+					<form action="/applCommand/isnotbomb" method="post">
+						<input id="not-bomb-button" class="button bomb-button" type="submit" value="Not Bomb" disabled>
+					</form>
+				</div>
+			</div>
+
+			<h3 class="subsubtitle">Temperature</h3>
+			<div class="commands-row">
+				<form action="/applCommand/temperature" method="get">
+					<div class="commands-row">
+						<input class="input" type="number" name="value">
+						<input class="button temperature-button" type="submit" value="Set" >
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+
+	<div id="right-column">
+
+		<div id="manual-commands">
+			<!--<h2 class="subtitle">Manual Commands</h2>-->
+			<div id="manual-commands-row">
+				<form action="/commands/w" method="post">
+					<input id="forward-button" class="manual-button" type="submit" value="">
+				</form>
+			</div>
+			<div id="manual-commands-row">
+				<form action="/commands/a" method="post">
+					<input id="left-button" class="manual-button" type="submit" value="">
+				</form>
+				<form action="/commands/h" method="post">
+					<input id="stop-button" class="manual-button" type="submit" value=""  >
+				</form>
+				<form action="/commands/d" method="post">
+					<input id="right-button" class="manual-button" type="submit" value="">
+				</form>
+			</div>
+			<div id="manual-commands-row">
+				<form action="/commands/s" method="post">
+					<input id="backward-button" class="manual-button" type="submit" value="">
+				</form>
+			</div>
+
+		</div>
+
+		<!--<h2 class="subtitle">Map</h2>-->
+		<div id="map">
+			<table id="maptable">
+			</table>
+		</div>
+
+	</div>
+
+
+</div>
+
+
+<div>
+	<h2 class="subtitle">Info</h2>
+	<div class="info">
+ 		<div class="label">Robot State:</div>
+		<div class="value" id="robotState"><%robotstate%></div>
+	</div>
+	<div class="info">
+        <div class="label">Temperature:</div>
+		<div class="value" id="temperatureState"><%envmodel.resources['temperature'].value%></div>
+		<div class="value">°C</div>
+	</div>
+
+</div>
+
+ 
+</body>
+</html>

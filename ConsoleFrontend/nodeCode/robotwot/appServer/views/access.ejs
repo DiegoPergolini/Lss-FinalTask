@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script>
+       var socket  = io.connect();
+       socket.on('connect', function(){ console.log("socket connected");});
+       socket.on('message', function(v){ document.getElementById('display').innerHTML=v; });
+</script>
+
+</head>
+
+<body>
+<div class="container">
+<h1><%= title %></h1>
+ 
+   
+<br/><br/>
+<center>
+			<table style="background-color: #d9f7f3">
+					<tr>
+						<td>
+							<br/>
+						</td>
+					</tr>
+					<tr>
+						<td align="center">
+							<form action="/robot/actions/commands/w" method="post">
+							  	<input type="submit" value="forward" class="btn btn-primary btn-block">
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/a" method="post">
+							  	<input type="submit" value="left" class="btn btn-primary btn-block">
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/d" method="post">
+							  	<input type="submit" value="right" class="btn btn-primary btn-block">
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/s" method="post">
+							  	<input type="submit" value="backward" class="btn btn-primary btn-block">
+							</form>
+						</td>
+						<td align="center">
+							<form action="/robot/actions/commands/h" method="post">
+							  	<input type="submit" value="stop" class="btn btn-primary btn-block">
+							</form>
+						</td>
+					</tr>
+					<tr>
+						<td>
+							<br/>
+						</td>
+					</tr>
+				</table>
+</center>
+<br/><br/>
+</div>
+<center>
+	<div>
+ 		ROBOT ANSWER: <span id="display"><%= res %></span>
+	</div>
+	<div>
+ 		ROBOT STATE: <span id="display">...</span>
+	</div>
+</center>
+</body>
+</html>

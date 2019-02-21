@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+ 
+</head>
+
+<body>
+<div class="container">
+<h1><%= title %></h1>
+ 
+<h3>The resources</h3>
+ 
+ <% Object.keys(req.model.links).forEach( function( element )  { %>
+   <li><b><%= element  %></b>   
+    </li>  
+ <% } );%>
+ 
+  	<div>
+  	
+  	<h3>The full model</h3>
+  		<span id="displayModel"><%= req.modelStr  %></span>
+	</div>
+ 
+  
+
+</body>
+</html>

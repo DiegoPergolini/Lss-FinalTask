@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="style.css">
+</head>
+ 
+<body>
+<div class="container">
+<h1><%= title %></h1>
+ <p>An example with ejs </p>
+ <% for(var i=0; i<data.length; i++) { %>
+ 	<li><%= data[i] %>
+ <% } %>
+</div>   
+ 
+</body>
+</html>

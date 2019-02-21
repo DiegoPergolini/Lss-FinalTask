@@ -1,0 +1,87 @@
+{
+  "url":"http://localhost:8080/model/",
+  "robot": {
+	    "name": "UniboDdrRobot",
+	    "link": "robot/",
+	    "description": "A simple robot model",
+	    "properties":{
+	    	"link": "robotstate/",
+	    	"resources":{
+	    		"state": "stopped"
+	    	}
+	    },
+	    "devices":{
+	    	"link": "robotdevices/",
+	    	"resources":{
+			    "sonarRobot": {
+			    	"name"  : "sonarRobot",
+			    	"value" :  0
+		         },
+		        "led": {
+		          "name": "LED for motion",
+		          "value": false,
+		          "gpio": 25
+		        }
+		    }
+        },
+        "actions":{
+        	"link": "cmd/",
+        	"description": "The set of robot moves",
+        	"resources":{
+		        "move": {
+			          "name": "RobotMove",
+			          "description": "Move the robot",
+			          "values": {
+				            "moveId": {
+				              "type": "enum",
+				              "enum": {"w":"forward","h":"stop","a":"left"} ,
+				              "required": true
+				            }
+	         	 	   }
+	         	}
+        	}
+        } 
+    },
+    "robotenv": {
+	"link": "robotenv/",
+    "name": "RobotEnv",
+    "description": "The robot environment.",
+    "devices":{
+	    "link": "robotenv/devices/",
+	    "resources":{       	
+	 	    "sensor-sonar1": {
+		    	"name" : "sonar1",
+	         	"description": "The upper sonar.",
+		    	"value": 0
+		    },
+		    "sensor-sonar2": {
+		    	"name" : "sonar2",
+	         	"description": "The lower sonar.",
+		    	"value": 0
+		    },
+		    "sensor-temperature":{
+	       		"name" : "temperature",
+	          	"description": "An ambient temperature sensor.",
+	        	"unit": "celsius",
+	        	"value": 0,
+	        	"gpio": 12
+	      	},
+	       "actuator-led": {
+	          "name": "Hue Lamp",
+	          "description": "A REST lamp.",
+	          "value": false,
+	          "ip": "https://www2.meethue.com/it-it"
+	        }
+        }
+    }    
+ 
+  },
+  "links":{
+  		"link": "meta/",
+  		"name": "MetaInfo",
+    	"meta":{
+    		"rel" :"http://http://infolab.ingce.unibo.it/iss2018/it.unibo.issMaterial/issdocs/Material/LectureCesena1819.html",
+    		"title": "A description"
+    	}
+  }
+}

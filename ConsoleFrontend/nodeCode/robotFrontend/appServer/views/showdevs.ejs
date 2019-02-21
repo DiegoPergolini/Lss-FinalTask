@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title><%= title %></title>
+<link rel="stylesheet" href="/stylesheets/style.css">
+<script type="text/javascript" src="/socket.io/socket.io.js"></script>
+<script>
+       var socket  = io.connect();
+       socket.on('connect', function(){ console.log("socket connected");});
+       socket.on('message', function(v){ document.getElementById('display').innerHTML=v; });
+</script>
+ 
+</head>
+
+<body>
+<div class="container">
+<h1><%= title %></h1>
+
+<h3>The model of the devices</h3>
+<%= res %>
+
+<h3>Devices <%=where%></h3>
+<ul>
+<% Object.keys(model.resources).forEach( function( dev )  { %>
+   <li><b><%= dev  %></b> <br/> 
+       name=<%= model.resources[dev].name %>, 
+       descr=<%= model.resources[dev].description %></li>
+       value=<%= model.resources[dev].value %></li>
+ <% } );%>
+</ul>
+
+
+<script>console.log( "Devices" )</script>
+ 
+<p>
+Back to main page: <a href="http://<%=host%>">main page</a>  
+</p>
+</div>
+</body>
