@@ -111,7 +111,8 @@ ConsoleFrontend/nodeCode/node_modules/
 ConsoleFrontend/nodeCode/robot/node_modules/
 ConsoleFrontend/nodeCode/server/node_modules/
 ConsoleFrontend/Soffritti/server/node_modules
-*/nodeCode/
+ConsoleFrontend/Soffritti/WebGLScene/node_modules/
+
 .lck/ 
 docker/
 /.metadata/
