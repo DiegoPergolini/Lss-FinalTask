@@ -75,7 +75,7 @@ Event temperatureState : temperatureState(X)
  * EXPLORATION
  */
 
-Event obstaclePhoto: obstaclePhoto(X,Y)
+Event obstacle: obstacle(X)
 
 Event isBomb: isBomb
 Event isNotBomb: isNotABomb
@@ -892,7 +892,7 @@ QActor mind context ctxRobotExplore -pubsub{
 	[ !? goalResult(obstacleCell(X,Y,D,X1,Y1))] forward worldobserver -m cellValueMsg : cellValue(X1,Y1,x);
 	println("Taking Photo");
 	javaRun it.unibo.planning.photoUtils.sendPhoto();
-    [ ?? goalResult(obstacleCell(X,Y,D,X1,Y1))] publishEvent "unibo/qasys" -e  obstaclePhoto: obstaclePhoto(PHOTO,curPos(X1,Y1,D));
+    [ ?? goalResult(obstacleCell(X,Y,D,X1,Y1))] publishEvent "unibo/qasys" -e  obstacle: obstacle(curPos(X1,Y1,D));
    	ReplaceRule robotState(_) with robotState( waitingObstacleClassification ); 	 	
 	emit robotState : robotState( waitingObstacleClassification );
    	println("Sono in attesa di istruzioni")
