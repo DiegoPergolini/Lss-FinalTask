@@ -14,7 +14,7 @@ console.log( echannel   );
 
 //var client   = mqtt.connect('mqtt://iot.eclipse.org');
 //var client   = mqtt.connect('mqtt://192.168.1.100');
- var client    = mqtt.connect('mqtt://192.168.43.137');
+ var client    = mqtt.connect('mqtt://localhost');
 
 client.on('connect', function () {
 	  client.subscribe( topic );

@@ -64,95 +64,79 @@
 
        socket.on('message', function(data){
            console.log(data);
-           if(data.indexOf("worldState")>=0){
-               const worldState = data.split('worldState(')[1].split(")),")[0]+")";
-               console.log(worldState);
-               const tempString = worldState.split(',')[0];
-               const robotStateString = worldState.split(',')[1];
-               const tempValue = parseFloat(tempString.split('(')[1].replace(")",""));
-               const stateValue = robotStateString.split('(')[1].replace(")","");
-               document.getElementById('temperatureState').innerHTML=tempValue;
-               // document.getElementById('robotState').innerHTML= stateValue;
+			   if(!data.msgId){
+				   if( data.indexOf("photoM")>=0) {
+					   console.log("photoM");
+					   var photo = data.split('photoM(')[1].split("),")[0];
+					   photo = photo.split(")',")[0];
 
-               handleRobotStateChanged(stateValue);
+					   var image = new Image();
+					   image.src = "data:image/png;base64," + photo;
+					   image.width = 200;
 
-           }else if( data.indexOf("mapUpdate")>=0){
-               const mapUpdate = data.split('mapUpdate(')[1].split("),")[0];
-               const values = mapUpdate.split(',');
-               const x = parseInt(values[0]);
-               const y = parseInt(values[1]);
-               const s = values[2];
-
-               var table = document.getElementById("maptable");
-
-               var row = table.rows[y];
-               if (!row) {
-                   row = table.insertRow(-1);
-			   }
-				console.log(row);
-			   var cell = row.cells[x];
-               if (!cell) {
-                   for (var i=0; i<x; i++) {
-                       if(!row.cells[i]) {
-                           row.insertCell(-1).innerHTML="";
-					   }
+					   document.getElementById("obstacle-image").appendChild(image);
 				   }
-                   cell = row.insertCell(-1);
-			   }
+			   }else if(data.msgId==="consoleUpdate"){
+                       document.getElementById('temperatureState').innerHTML=data.temperature;
+                        // document.getElementById('robotState').innerHTML= stateValue;
+                       handleRobotStateChanged(data.robotState);
+			   }else if(data.msgId==="mapUpdate"){
+                   const x = data.x;
+                   const y = data.y;
+                   const s = data.s;
+					console.log(data);
+                   var table = document.getElementById("maptable");
 
-			   if(s==='1' || s==='R' || s==='X') {
-                   cell.style.background = "#afb8bc";
-			   }
+                   var row = table.rows[y];
+                   if (!row) {
+                       row = table.insertRow(-1);
+                   }
+                   console.log(row);
+                   var cell = row.cells[x];
+                   if (!cell) {
+                       for (var i=0; i<x; i++) {
+                           if(!row.cells[i]) {
+                               row.insertCell(-1).innerHTML="";
+                           }
+                       }
+                       cell = row.insertCell(-1);
+                   }
 
-			   if(s==='1') {
-                   cell.innerHTML="";
-			   } else {
-                   cell.innerHTML=s;
-			   }
+                   if(s==='1' || s==='R' || s==='X') {
+                       cell.style.background = "#afb8bc";
+                   }
 
+                   if(s==='1') {
+                       cell.innerHTML="";
+                   } else {
+                       cell.innerHTML=s;
+                   }
+               }else  if(data.msgId==="robotPos"){
 
+					   const x = data.x;
+					   const y = data.y;
+					   const s = data.s;
 
+                       var table = document.getElementById("maptable");
 
-               // document.getElementById(y).children[x].innerHTML=s;
-               console.log(x,y,s);
+                       var row = table.rows[y];
+                       if (!row) {
+                           row = table.insertRow(-1);
+                       }
 
-		   }else if(data.indexOf("robotPos")>=0){
-               const mapUpdate = data.split('robotPos(')[1].split("),")[0];
-               const values = mapUpdate.split(',');
-               const x = parseInt(values[0]);
-               const y = parseInt(values[1]);
-               const s = values[2];
+                       var cell = row.cells[x];
+                       if (!cell) {
+                           cell = row.insertCell(-1);
+                       }
+                       cell.innerHTML="R";
+                       table.rows[robotPos.y].cells[robotPos.x].innerHTML="";
 
-               var table = document.getElementById("maptable");
-
-               var row = table.rows[y];
-               if (!row) {
-                   row = table.insertRow(-1);
+                       robotPos = {
+                           x: x,
+                   	   y: y
+                       }
+                       console.log(data);
                }
-
-               var cell = row.cells[x];
-               if (!cell) {
-                   cell = row.insertCell(-1);
-               }
-               cell.innerHTML="R";
-               table.rows[robotPos.y].cells[robotPos.x].innerHTML="";
-
-               robotPos = {
-                   x: x,
-				   y: y
-               }
-               console.log(data);
-		   }else if( data.indexOf("photoM")>=0) {
-               console.log("photoM");
-               var photo = data.split('photoM(')[1].split("),")[0];
-               photo = photo.split(")',")[0];
-
-               var image = new Image();
-               image.src = "data:image/png;base64," + photo;
-               image.width = 200;
-
-               document.getElementById("obstacle-image").appendChild(image);
-           }
        });
 
        function handleRobotStateChanged(state) {

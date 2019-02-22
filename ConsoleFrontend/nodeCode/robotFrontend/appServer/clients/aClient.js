@@ -9,7 +9,7 @@ var request = require('request'); //npm install --save request;
 var doGet = function(path){
 	const optionsGetRoot = {
 			method: 'GET',
-			url: 'http://192.168.1.41:8080/'+path, //;
+			url: 'http://locahost:8080/'+path, //;
 			headers: {
 				'Content-Type': 'application/json',
 				 'accept': 'application/json'
@@ -25,7 +25,7 @@ var doGet = function(path){
 var doMove = function(move){
 	var optionsMove = {
 		method: 'POST',
-		url: 'http://192.168.1.41:8080/commands/'+move, //;
+		url: 'http://localhost:8080/commands/'+move, //;
 	    headers: { "Content-Type": "application/json" }
 	};
  	request(optionsMove, function(error, response, body){

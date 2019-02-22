@@ -8,6 +8,7 @@ const model      = require('./../models/robot.json');
 const io         = require('socket.io');
 const channel    = new events.EventEmitter();
 const mqttUtils  = null;
+
 var robotPosition = {
     x:0,
     y:0,
@@ -39,53 +40,58 @@ channel.on('sonarDetect', function(data) {	//emitted by clientRobotVirtual or mq
 	model.links.robot.resources.robotdevices.resources.sonarRobot.data.push(data);	//history
 	this.io.sockets.send( data );
 });
-channel.on('obstaclePhoto', function(data) {	//emitted by clientRobotVirtual or mqtt support;
+
+channel.on('obstacle', function(data) {	//emitted by clientRobotVirtual or mqtt support;
+    const result = data.unifyWithContent("obstacle(curPos(X,Y,D))","X","Y","D");
+    const content = {
+        msgId:data.msgId,
+        x: result.X,
+        y: result.Y,
+        d: result.D
+    };
     console.log("\t CHANNEL obstaclePhoto updates the model and the page with:" + data );
-    model.links.robot.resources.robotdevices.resources.sonarRobot.value=data;
-    model.links.robot.resources.robotdevices.resources.sonarRobot.data.push(data);	//history
 
-    var curPos = data.split('curPos(')[1].split(")),")[0];
-    var x = curPos.split(',')[0];
-    var y = curPos.split(',')[1];
-
-    obstacleInfo.x = parseInt(x);
-    obstacleInfo.y = parseInt(y);
+    obstacleInfo.x = parseInt(result.X);
+    obstacleInfo.y = parseInt(result.Y);
 });
+
 channel.on('robotState', function(data) {  //emitted by robotControl or applRobotControl;
 	console.log("\t CHANNEL receives: " + data  );
- 	// model.links.robot.resources.robotstate.state=data;  //shown in the page by app renderMainPage
- 	// not propagated via io.sockets since a robot state can change only after a user command (??)
- 	// CLEAR THE sonar
+
 	model.links.robotenv.envdevices.resources.sonar2.value="";
 	this.io.sockets.send( data );
-	// model.links.robot.resources.robotdevices.resources.sonarRobot.value="";
 });
 channel.on('consoleUpdate', function(data) {
     console.log("\t CHANNEL receives: " + data  );
-    // data.indexOf("temperature(");
-    const worldState = data.split('worldState(')[1].split(")),")[0]+")";
-    console.log(worldState);
-    const tempString = worldState.split(',')[0];
-    const robotStateString = worldState.split(',')[1];
-    const tempValue = parseFloat(tempString.split('(')[1].replace(")",""));
-    const stateValue = robotStateString.split('(')[1].replace(")","");
-    console.log(tempValue,stateValue);
-    this.io.sockets.send( data );
-    model.links.robotenv.envdevices.resources.temperature.value = tempValue;
-    model.links.robot.resources.robotstate.state=stateValue;  //shown in the page by app renderMainPage
+
+    console.log(data);
+    const result = data.unifyWithContent("worldState(temperature(T), robotState(S))","T","S");
+    const content = {
+        msgId:data.msgId,
+        temperature: result.T,
+        robotState: result.S
+    };
+    this.io.sockets.send( content );
+
+    console.log(result);
+    model.links.robotenv.envdevices.resources.temperature.value = result.T;
+    model.links.robot.resources.robotstate.state = result.S;  //shown in the page by app renderMainPage
 });
 channel.on('mapUpdate', function(data) {
+    const result = data.unifyWithContent("mapUpdate(X,Y,S)","X","Y","S");
+    const content = {
+        msgId:data.msgId,
+        x: result.X,
+        y: result.Y,
+        s: result.S.toString()
+    };
+
     console.log("\t CHANNEL receives: " + data);
-    console.log("wasd");
-    const mapUpdate = data.split('mapUpdate(')[1].split("),")[0];
-    const values = mapUpdate.split(',');
-    const x = parseInt(values[0]);
-    const y = values[1];
-    const s = values[2];
+
     const cell = {
-    	x: x,
-		y: y,
-		s: s
+        x: result.X,
+        y: result.Y,
+        s: result.S.toString()
 	};
     const index  = model.links.robotenv.envdevices.resources.map.cells.indexOf(cell);
     if(index>=0){
@@ -93,33 +99,25 @@ channel.on('mapUpdate', function(data) {
 	}
     model.links.robotenv.envdevices.resources.map.cells.push(cell);
     console.log(model.links.robotenv.envdevices.resources.map.cells);
-    this.io.sockets.send( data );
+    this.io.sockets.send( content );
 });
 channel.on('robotPos', function(data) {
-    // const robotPos = data.split('robotPos(')[1].split("),")[0];
-    // const values = robotPos.split(',');
-    // const x = parseInt(values[0]);
-    // const y = values[1];
-    // const s = values[2];
-    // const cell = {
-    //     x: x,
-    //     y: y,
-    //     s: s
-    // };
-    // const index  = model.links.robotenv.envdevices.resources.map.cells.indexOf(robotPosition);
-    // if(index>=0){
-    //     model.links.robotenv.envdevices.resources.map.cells.splice(index,1);
-    // }
-    // const oldPos = {
-    //     x:robotPosition.x,
-    //     y:robotPosition.y,
-    //     s:"1"
-    // }
-    // model.links.robotenv.envdevices.resources.map.cells.push(oldPos);
-    // model.links.robotenv.envdevices.resources.map.cells.push(cell);
-    // robotPosition = cell;
-    // console.log(model.links.robotenv.envdevices.resources.map.cells);
-    this.io.sockets.send( data );
+    const result = data.unifyWithContent("robotPos(X,Y,r)","X","Y");
+    const content = {
+        msgId:data.msgId,
+        x: result.X,
+        y: result.Y,
+        s: 'r'
+    };
+
+    console.log("\t CHANNEL receives: " + data);
+
+    const cell = {
+        x: result.X,
+        y: result.Y,
+        s: 'r'
+    };
+    this.io.sockets.send( content );
 });
 channel.on('publishcmd', function(data) {  //emitted by robotControl;
 	console.log("\t CHANNEL publishcmd: " + data + " on topic unibo/qasys" + " mqttUtils=" + mqttUtils);
@@ -131,14 +129,14 @@ channel.on('photoM', function(data) {
     var photo = data.split('photoM(')[1].split("),")[0];
     photo = photo.split(")',")[0];
 
-    obstacleInfo.photo = photo;
-
     this.io.sockets.send( data );
 });
+
 channel.on('bombRetrievedMsg', function(data) {
-    var newData = data.replace('bombRetrievedMsg', 'bombRetrievedEvent').replace('dispatch', 'event');
-    console.log("publish " + newData);
-    publish( newData );
+    data.msgId = "bombRetrievedEvent";
+    data.msgType = "event";
+    console.log("publish " + data);
+    publish( data.toCompactForm());
 });
 channel.on('storeBombInfo', function(data) {
     console.log("storeBombInfo");
@@ -157,6 +155,9 @@ channel.on('storeBombInfo', function(data) {
     });
 });
 
+channel.on('testMsg',function (msg) {
+    console.log(msg.testUnification("testMsg(temp(10,20))"));
+});
 module.exports=channel;
 
 /*
@@ -168,36 +169,30 @@ const systemConfig = require("./../../systemConfig");
 const mqtt    = require ('mqtt');	 
 const topic   = "unibo/qasys";
 var client    = mqtt.connect(systemConfig.mqttbroker);
-
+var QAmsg = require("./QAmsg.js");
 client.on('connect', function () {
 	  client.subscribe( topic );
 	  console.log('\t MQTT client has subscribed successfully ');
 });
-
 //The message usually arrives as buffer, so we convert it to string data type;
 client.on('message', function (topic, message){
 	var msg = message.toString();
-	console.log("\t MQTT RECEIVES:"+ msg); //if toString is not given, the message comes as buffer;
-	if( msg.indexOf( "sonarDetect" ) > 0 ){
-		channel.emit("sonarDetect",  msg  );  //to allow update of the WebPage
-	}else if( msg.indexOf( "sonar" ) > 0   ){
-		channel.emit("sonar",  msg  );  //to allow update of the WebPage
-	}else if( msg.indexOf( "obstaclePhoto" ) > 0   ){
-        channel.emit("obstaclePhoto",  msg  );  //to allow update of the WebPage
-    }else if( msg.indexOf( "consoleUpdate" ) > 0   ){
-        channel.emit("consoleUpdate",  msg  );  //to allow update of the WebPage
-    }else if( msg.indexOf( "mapUpdate" ) > 0   ){
-        channel.emit("mapUpdate",  msg  );  //to allow update of the WebPage
-    }else if( msg.indexOf( "robotPos" ) > 0   ){
-        channel.emit("robotPos",  msg  );  //to allow update of the WebPage
-    }else if( msg.indexOf( "photoM" ) > 0   ){
-        channel.emit("photoM",  msg  );  //to allow update of the WebPage
-    }else if( msg.indexOf( "bombRetrievedMsg" ) > 0   ){
-        channel.emit("bombRetrievedMsg",  msg  );  //to allow update of the WebPage
+	var tempMsg;
+    if( msg.indexOf( "photoM" ) > 0   ) {
+        channel.emit("photoM", msg)
+    }else if(msg.startsWith("msg(")){
+	    console.log(msg);
+        var qAMsg = new QAmsg(msg);
+        channel.emit(qAMsg.msgId,qAMsg);
+    }else if( msg.indexOf( "sonarDetect" ) > 0 ){
+    	channel.emit("sonarDetect",  msg  );  //to allow update of the WebPage
+    }else if( msg.indexOf( "sonar" ) > 0   ){
+    	channel.emit("sonar",  msg  );  //to allow update of the WebPage
     }
+	console.log("\t MQTT RECEIVES:"+ msg); //if toString is not given, the message comes as buffer;
 });
 
 publish = function( msg ){
-	//console.log('\t MQTT  publish ' + client);
+	console.log('\t MQTT  publish ' + client);
 	client.publish(topic, msg);
 }

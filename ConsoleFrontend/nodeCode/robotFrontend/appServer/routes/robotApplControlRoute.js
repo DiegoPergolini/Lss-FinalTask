@@ -35,7 +35,6 @@ router.post("/isnotbomb", function(req, res, next) {
     next();
 });
 router.get("/temperature", function(req, res, next) {
-    console.log("weee");
     console.log("temp is " + req.query.value);
     robotControl.actuate("temperature", req, res );
     next();

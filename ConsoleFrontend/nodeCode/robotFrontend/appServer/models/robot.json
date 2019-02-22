@@ -1,9 +1,9 @@
 {
-  "id": "http://192.168.1.41:8080",
+  "id": "http://localhost:8080",
   "name": "Unibo Robot front-end",
   "description": "A front-end for controlling a drr robot.",
   "customFields": {
-    "hostname":"192.168.1.41",
+    "hostname":"localhost",
     "port": 8080,
     "secure": false,
     "dataArraySize" : 40

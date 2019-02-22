@@ -9,10 +9,10 @@ var robotType      = virtualRobot;
 var robotPlugin    = null;
 var ledPlugin      = null;
 
-exports.mqttbroker = "mqtt://192.168.43.137";
+exports.mqttbroker = "mqtt://localhost";
 //exports.mqttbroker = "mqtt://iot.eclipse.org";
 
-exports.robotAddr  = {ip: "192.168.1.41", port: 8999};
+exports.robotAddr  = {ip: "localhost", port: 8999};
 
 exports.setRobotType = function( v ){
 	if( v === virtualRobot || v === mbotlRobot || v === uniboRobot){

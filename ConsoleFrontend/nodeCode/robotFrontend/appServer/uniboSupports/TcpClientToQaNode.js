@@ -20,7 +20,7 @@ var socket = null;
 function sendMsg( msg ){
  		if( socket == null ){
  	  		console.log('TcpClientToQaNode ATTEMPTS CONNECTION ...'  );
-			socket = net.connect({ port: 8021, host: "192.168.1.41" });
+			socket = net.connect({ port: 8021, host: "locahost" });
    			socket.setEncoding('utf8');
 			
 			// when receive data back, print to console

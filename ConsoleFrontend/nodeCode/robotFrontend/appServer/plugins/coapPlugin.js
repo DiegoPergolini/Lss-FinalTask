@@ -17,7 +17,7 @@ function connectHardware() {
     read: function () { //#B
       coap
         .request({ //#C
-          host: '192.168.1.41',
+          host: 'localhost',
           port: 5683,
           pathname: '/co2',
           options: {'Accept': 'application/json'}
